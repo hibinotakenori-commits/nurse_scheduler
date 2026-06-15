@@ -1,0 +1,476 @@
+[
+  {
+    "staff_id": 2,
+    "date": "2026-07-24",
+    "shift": "N1",
+    "is_fixed": true
+  },
+  {
+    "staff_id": 2,
+    "date": "2026-07-25",
+    "shift": "N2",
+    "is_fixed": true
+  },
+  {
+    "staff_id": 2,
+    "date": "2026-07-27",
+    "shift": "T",
+    "is_fixed": true
+  },
+  {
+    "staff_id": 2,
+    "date": "2026-08-07",
+    "shift": "I",
+    "is_fixed": true
+  },
+  {
+    "staff_id": 2,
+    "date": "2026-08-08",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 2,
+    "date": "2026-08-09",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 2,
+    "date": "2026-08-14",
+    "shift": "I",
+    "is_fixed": true
+  },
+  {
+    "staff_id": 2,
+    "date": "2026-08-19",
+    "shift": "I",
+    "is_fixed": true
+  },
+  {
+    "staff_id": 16,
+    "date": "2026-07-21",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 16,
+    "date": "2026-07-22",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 16,
+    "date": "2026-08-02",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 16,
+    "date": "2026-08-03",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 5,
+    "date": "2026-07-27",
+    "shift": "I",
+    "is_fixed": true
+  },
+  {
+    "staff_id": 5,
+    "date": "2026-08-14",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 5,
+    "date": "2026-08-15",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 7,
+    "date": "2026-07-21",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 7,
+    "date": "2026-07-22",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 7,
+    "date": "2026-07-23",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 7,
+    "date": "2026-07-24",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 7,
+    "date": "2026-07-25",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 7,
+    "date": "2026-07-27",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 7,
+    "date": "2026-07-28",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 7,
+    "date": "2026-07-29",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 7,
+    "date": "2026-07-30",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 7,
+    "date": "2026-08-06",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 21,
+    "date": "2026-08-06",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 20,
+    "date": "2026-07-30",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 12,
+    "date": "2026-07-27",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 12,
+    "date": "2026-07-28",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 12,
+    "date": "2026-08-20",
+    "shift": "I",
+    "is_fixed": true
+  },
+  {
+    "staff_id": 4,
+    "date": "2026-07-28",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 4,
+    "date": "2026-07-29",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 4,
+    "date": "2026-07-30",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 4,
+    "date": "2026-08-06",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 11,
+    "date": "2026-07-24",
+    "shift": "I",
+    "is_fixed": true
+  },
+  {
+    "staff_id": 27,
+    "date": "2026-08-11",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 23,
+    "date": "2026-07-30",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 8,
+    "date": "2026-07-27",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 8,
+    "date": "2026-07-28",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 8,
+    "date": "2026-07-29",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 8,
+    "date": "2026-07-30",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 8,
+    "date": "2026-07-25",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 8,
+    "date": "2026-07-26",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 8,
+    "date": "2026-08-01",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 8,
+    "date": "2026-08-02",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 8,
+    "date": "2026-08-08",
+    "shift": "N1",
+    "is_fixed": true
+  },
+  {
+    "staff_id": 8,
+    "date": "2026-08-09",
+    "shift": "N2",
+    "is_fixed": true
+  },
+  {
+    "staff_id": 8,
+    "date": "2026-08-11",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 8,
+    "date": "2026-08-12",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 8,
+    "date": "2026-08-13",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 8,
+    "date": "2026-08-14",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 8,
+    "date": "2026-08-15",
+    "shift": "N1",
+    "is_fixed": true
+  },
+  {
+    "staff_id": 8,
+    "date": "2026-08-16",
+    "shift": "N2",
+    "is_fixed": true
+  },
+  {
+    "staff_id": 8,
+    "date": "2026-08-20",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 22,
+    "date": "2026-08-06",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 22,
+    "date": "2026-08-15",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 22,
+    "date": "2026-08-16",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 22,
+    "date": "2026-08-17",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 14,
+    "date": "2026-07-25",
+    "shift": "T",
+    "is_fixed": true
+  },
+  {
+    "staff_id": 14,
+    "date": "2026-07-30",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 6,
+    "date": "2026-08-04",
+    "shift": "I",
+    "is_fixed": true
+  },
+  {
+    "staff_id": 6,
+    "date": "2026-08-14",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 25,
+    "date": "2026-08-06",
+    "shift": "P",
+    "is_fixed": true
+  },
+  {
+    "staff_id": 13,
+    "date": "2026-07-25",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 13,
+    "date": "2026-08-09",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 15,
+    "date": "2026-07-26",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 31,
+    "date": "2026-08-06",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 32,
+    "date": "2026-07-30",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 32,
+    "date": "2026-08-06",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 30,
+    "date": "2026-07-25",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 30,
+    "date": "2026-07-26",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 30,
+    "date": "2026-07-27",
+    "shift": "O",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 30,
+    "date": "2026-07-30",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 1,
+    "date": "2026-07-21",
+    "shift": "C",
+    "is_fixed": true
+  },
+  {
+    "staff_id": 1,
+    "date": "2026-07-28",
+    "shift": "I",
+    "is_fixed": true
+  },
+  {
+    "staff_id": 1,
+    "date": "2026-08-04",
+    "shift": "C",
+    "is_fixed": true
+  },
+  {
+    "staff_id": 1,
+    "date": "2026-08-07",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 1,
+    "date": "2026-08-11",
+    "shift": "D",
+    "is_fixed": false
+  },
+  {
+    "staff_id": 1,
+    "date": "2026-08-18",
+    "shift": "C",
+    "is_fixed": true
+  }
+]

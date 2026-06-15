@@ -1,0 +1,286 @@
+"""アプリ設定の永続化（settings.json への保存・読込）。"""
+import datetime
+import json
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import pandas as pd
+
+# 保存先: プロジェクトルート直下
+SETTINGS_PATH  = Path(__file__).parent.parent / "settings.json"
+REQUESTS_PATH  = Path(__file__).parent.parent / "requests.json"
+
+# ── デフォルト値 ─────────────────────────────────────────────
+DEFAULT_SOFT_WEIGHTS: Dict[str, int] = {
+    "soft_req":       5,   # ソフト希望の尊重
+    "exp_balance":    4,   # 経験年数バランス
+    "night_spread":   3,   # 夜勤の月内散らばり
+    "night_evenness": 2,   # スタッフ間の夜勤回数均等化
+    "day_leader":     7,   # 日勤リーダー確保
+    "night_leader":   6,   # 夜勤リーダー確保
+}
+
+DEFAULT_REQUIREMENTS: Dict[str, Any] = {
+    "D": {"weekday": 8, "weekday_max": 20, "holiday": 6, "holiday_max": 20},
+    "L": {"weekday": 1, "holiday": 1},
+    "N": {"base": 4, "max": 5, "first_year_plus1": True},
+}
+
+# 保育園利用区分の選択肢
+DAYCARE_TYPE_OPTIONS = ["none", "day", "night"]
+DAYCARE_TYPE_LABELS  = {"none": "利用なし", "day": "日中のみ", "night": "夜間保育あり"}
+
+
+def load_settings() -> Dict[str, Any]:
+    """
+    settings.json を読み込む。ファイルが存在しない場合はデフォルト値を返す。
+
+    Returns:
+        {
+            "requirements": dict,
+            "soft_weights": dict,
+            "hospital_holidays": List[datetime.date],
+            "daycare_closed": List[datetime.date],
+            "nightcare_open": List[datetime.date],   # 夜間保育受け入れ日
+            "gakudo_open": List[datetime.date],      # 夜間学童受け入れ日
+            "staff": List[dict] | None,
+        }
+    """
+    if not SETTINGS_PATH.exists():
+        return {
+            "requirements":    _deep_copy_req(DEFAULT_REQUIREMENTS),
+            "soft_weights":    dict(DEFAULT_SOFT_WEIGHTS),
+            "hospital_holidays": [],
+            "daycare_closed":  [],
+            "nightcare_open":  [],
+            "gakudo_open":     [],
+            "hard_constraints":  [],
+            "soft_constraints":  [],
+            "staff":           None,
+        }
+
+    try:
+        with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return {
+            "requirements":    _deep_copy_req(DEFAULT_REQUIREMENTS),
+            "soft_weights":    dict(DEFAULT_SOFT_WEIGHTS),
+            "hospital_holidays": [],
+            "daycare_closed":  [],
+            "nightcare_open":  [],
+            "gakudo_open":     [],
+            "hard_constraints":  [],
+            "soft_constraints":  [],
+            "staff":           None,
+        }
+
+    # requirements の後方互換
+    req = data.get("requirements", {})
+    d_cfg = req.get("D", {})
+    d_cfg.setdefault("weekday_max", DEFAULT_REQUIREMENTS["D"]["weekday_max"])
+    d_cfg.setdefault("holiday_max", DEFAULT_REQUIREMENTS["D"]["holiday_max"])
+    req["D"] = d_cfg
+
+    # 日付文字列 → datetime.date
+    data["hospital_holidays"] = [
+        datetime.date.fromisoformat(s)
+        for s in data.get("hospital_holidays", [])
+    ]
+    data["daycare_closed"] = [
+        datetime.date.fromisoformat(s)
+        for s in data.get("daycare_closed", [])
+    ]
+    data["nightcare_open"] = [
+        datetime.date.fromisoformat(s)
+        for s in data.get("nightcare_open", [])
+    ]
+    data["gakudo_open"] = [
+        datetime.date.fromisoformat(s)
+        for s in data.get("gakudo_open", [])
+    ]
+    data.setdefault("staff", None)
+    data.setdefault("target_year", None)
+    data.setdefault("target_month", None)
+    data.setdefault("system_constraint_priorities", {})
+    data.setdefault("user_constraints", [])
+    # 旧フォーマット後方互換（hard_constraints/soft_constraints → user_constraints へ移行）
+    if not data["user_constraints"]:
+        old_hard = data.pop("hard_constraints", [])
+        old_soft = data.pop("soft_constraints", [])
+        migrated = [{"text": t, "priority": 5} for t in old_hard] + \
+                   [{"text": t, "priority": 3} for t in old_soft]
+        if migrated:
+            data["user_constraints"] = migrated
+
+    # soft_weights の後方互換
+    sw = data.get("soft_weights", {})
+    for k, v in DEFAULT_SOFT_WEIGHTS.items():
+        sw.setdefault(k, v)
+    data["soft_weights"] = sw
+
+    return data
+
+
+def save_settings(
+    requirements: Dict[str, Any],
+    soft_weights: Dict[str, int],
+    hospital_holidays: List[datetime.date],
+    daycare_closed: List[datetime.date],
+    nightcare_open: List[datetime.date],
+    staff_df: pd.DataFrame,
+    target_year: Optional[int] = None,
+    target_month: Optional[int] = None,
+    gakudo_open: Optional[List[datetime.date]] = None,
+    # 旧パラメータ（後方互換のため残す）
+    hard_constraints: Optional[List[str]] = None,
+    soft_constraints: Optional[List[str]] = None,
+    # 新パラメータ
+    system_constraint_priorities: Optional[Dict[str, int]] = None,
+    user_constraints: Optional[List[dict]] = None,
+) -> None:
+    """現在の設定を settings.json に保存する。"""
+    staff_records = []
+    for r in staff_df.to_dict(orient="records"):
+        cleaned = {}
+        for k, v in r.items():
+            if hasattr(v, "item"):
+                cleaned[k] = v.item()
+            elif isinstance(v, bool):
+                cleaned[k] = bool(v)
+            else:
+                cleaned[k] = v
+        staff_records.append(cleaned)
+
+    data = {
+        "version": 1,
+        "requirements":    requirements,
+        "soft_weights":    soft_weights,
+        "hospital_holidays": [d.isoformat() for d in (hospital_holidays or [])],
+        "daycare_closed":  [d.isoformat() for d in (daycare_closed or [])],
+        "nightcare_open":  [d.isoformat() for d in (nightcare_open or [])],
+        "gakudo_open":                   [d.isoformat() for d in (gakudo_open or [])],
+        "system_constraint_priorities":  dict(system_constraint_priorities or {}),
+        "user_constraints":              list(user_constraints or []),
+        "staff": staff_records,
+    }
+
+    if target_year is not None:
+        data["target_year"] = target_year
+    if target_month is not None:
+        data["target_month"] = target_month
+
+    with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def staff_df_from_settings(data: Dict[str, Any]) -> pd.DataFrame:
+    """
+    settings データから staff DataFrame を復元する。
+    staff が None または空の場合は staff_data.py のデフォルトを返す。
+    """
+    from utils.staff_data import load_staff
+
+    staff_list: Optional[List[dict]] = data.get("staff")
+    if not staff_list:
+        return load_staff()
+
+    df = pd.DataFrame(staff_list)
+
+    # 型の整合
+    int_cols   = ["id", "years_exp", "night_count_min", "night_count_max", "order"]
+    float_cols = ["target_hours"]
+    bool_cols  = ["night_ok", "day_leader_ok", "night_leader_ok"]
+
+    for c in int_cols:
+        if c in df.columns:
+            df[c] = df[c].fillna(0).astype(int)
+    if "order" not in df.columns:
+        df["order"] = range(1, len(df) + 1)
+    for c in bool_cols:
+        if c in df.columns:
+            df[c] = df[c].fillna(False).astype(bool)
+        else:
+            df[c] = False
+    for c in float_cols:
+        if c in df.columns:
+            df[c] = df[c].fillna(170.0).astype(float)
+
+    # 後方互換: 旧 daycare bool → daycare_type 文字列
+    if "daycare_type" not in df.columns:
+        if "daycare" in df.columns:
+            df["daycare_type"] = df["daycare"].apply(
+                lambda v: "day" if bool(v) else "none"
+            )
+            df.drop(columns=["daycare"], inplace=True)
+        else:
+            df["daycare_type"] = "none"
+    else:
+        df["daycare_type"] = df["daycare_type"].fillna("none").astype(str)
+
+    # 後方互換: nightcare_required がなければデフォルト False
+    if "nightcare_required" not in df.columns:
+        df["nightcare_required"] = False
+    else:
+        df["nightcare_required"] = df["nightcare_required"].fillna(False).astype(bool)
+
+    # 後方互換: gakudo / gakudo_required がなければデフォルト False
+    if "gakudo" not in df.columns:
+        df["gakudo"] = False
+    else:
+        df["gakudo"] = df["gakudo"].fillna(False).astype(bool)
+
+    if "gakudo_required" not in df.columns:
+        df["gakudo_required"] = False
+    else:
+        df["gakudo_required"] = df["gakudo_required"].fillna(False).astype(bool)
+
+    return df
+
+
+# ── 勤務希望の保存・読み込み ──────────────────────────────────
+
+def save_requests(requests_df: pd.DataFrame) -> None:
+    """requests_df を requests.json に保存する。"""
+    records = []
+    for r in requests_df.to_dict(orient="records"):
+        cleaned = {}
+        for k, v in r.items():
+            if k == "date":
+                cleaned[k] = v.isoformat() if hasattr(v, "isoformat") else str(v)
+            elif hasattr(v, "item"):
+                cleaned[k] = v.item()
+            elif isinstance(v, bool):
+                cleaned[k] = bool(v)
+            else:
+                cleaned[k] = v
+        records.append(cleaned)
+    with open(REQUESTS_PATH, "w", encoding="utf-8") as f:
+        json.dump(records, f, ensure_ascii=False, indent=2)
+
+
+def load_requests() -> pd.DataFrame:
+    """requests.json から requests_df を復元する。ファイルがなければ空 DataFrame を返す。"""
+    empty = pd.DataFrame(columns=["staff_id", "date", "shift", "is_fixed"])
+    if not REQUESTS_PATH.exists():
+        return empty
+    try:
+        with open(REQUESTS_PATH, "r", encoding="utf-8") as f:
+            records = json.load(f)
+        if not records:
+            return empty
+        df = pd.DataFrame(records)
+        df["date"]     = pd.to_datetime(df["date"]).dt.date
+        df["staff_id"] = df["staff_id"].astype(int)
+        df["is_fixed"] = df["is_fixed"].fillna(False).astype(bool)
+        df["shift"]    = df["shift"].astype(str)
+        return df.reset_index(drop=True)
+    except Exception:
+        return empty
+
+
+# ── 内部ユーティリティ ────────────────────────────────────────
+
+def _deep_copy_req(req: Dict) -> Dict:
+    import copy
+    return copy.deepcopy(req)
