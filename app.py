@@ -159,13 +159,19 @@ with st.sidebar:
     st.divider()
 
     now = datetime.date.today()
+    if now.day > 20:
+        _default_month = now.month % 12 + 1  # 翌月（12月なら1月）
+        _default_year_index = 2 if now.month == 12 else 1
+    else:
+        _default_month = now.month
+        _default_year_index = 1
     col1, col2 = st.columns(2)
     with col1:
         target_year = st.selectbox("年", list(range(now.year - 1, now.year + 3)),
-                                   index=1, key="target_year")
+                                   index=_default_year_index, key="target_year")
     with col2:
         target_month = st.selectbox("開始月", list(range(1, 13)),
-                                    index=now.month - 1, key="target_month")
+                                    index=_default_month - 1, key="target_month")
 
     dates = schedule_dates(target_year, target_month)
     end_date = dates[-1]
