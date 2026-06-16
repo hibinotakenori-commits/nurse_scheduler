@@ -99,6 +99,7 @@ def init_state():
         "req_l_holiday":     _req.get("L", {}).get("holiday",     1),
         "req_n_base":        _req.get("N", {}).get("base",        4),
         "req_n_max":         _req.get("N", {}).get("max",         5),
+        "req_n_fy_max":      _req.get("N", {}).get("first_year_max", 1),
     }
     for k, v in _req_defaults.items():
         if k not in st.session_state:
@@ -905,6 +906,13 @@ with tab_ward:
             key="req_n_fy_plus1",
             help="夜勤に1年目看護師が入る日は上下限を各+1にします（ハード条件）",
         )
+        st.number_input(
+            "1年目の夜勤上限",
+            min_value=1, max_value=3, step=1,
+            value=int(st.session_state.requirements.get("N", {}).get("first_year_max", 1)),
+            key="req_n_fy_max",
+            help="1回の夜勤（N1）に入れる1年目看護師の最大人数",
+        )
 
     if st.session_state.req_n_max < st.session_state.req_n_base:
         st.warning("上限人数が下限人数を下回っています。")
@@ -918,9 +926,10 @@ with tab_ward:
         "L": {"weekday": st.session_state.req_l_weekday,
               "holiday": st.session_state.req_l_holiday,
               "first_year_ok": l_first_year_ok},
-        "N": {"base":            st.session_state.req_n_base,
-              "max":             st.session_state.req_n_max,
-              "first_year_plus1": fy_plus1},
+        "N": {"base":             st.session_state.req_n_base,
+              "max":              st.session_state.req_n_max,
+              "first_year_plus1": fy_plus1,
+              "first_year_max":   st.session_state.req_n_fy_max},
     }
 
     st.divider()

@@ -159,6 +159,7 @@ def solve(
     n_night_max  = int(_n_cfg.get("max",  n_night_base))
     n_night_max  = max(n_night_max, n_night_base)   # max >= base を保証
     n_fy_plus1   = bool(_n_cfg.get("first_year_plus1", True))
+    n_fy_max     = int(_n_cfg.get("first_year_max", 1))
 
     # 遅出設定
     l_first_year_ok = bool(requirements.get("L", {}).get("first_year_ok", False))
@@ -323,6 +324,10 @@ def solve(
         else:
             model.add(n1_count >= n_night_base)
             model.add(n1_count <= n_night_max)
+
+        # H_fy_max: 1年目の夜勤（N1）上限
+        if first_year_in_n1:
+            model.add(sum(first_year_in_n1) <= n_fy_max)
 
         # N2 制約: 前日N1と同じ範囲
         n2_count = sum(x[s][d][N2] for s in range(n_staff))
