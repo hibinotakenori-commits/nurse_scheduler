@@ -57,4 +57,5 @@ def load_staff() -> pd.DataFrame:
     # 夜間学童必須フラグ: True=夜間学童受け入れ日のみ夜勤可
     df["gakudo_required"] = False
     df["order"]   = range(1, len(df) + 1)  # 表示順（小さい順に表示）
+    df["active"]  = True                   # 有効フラグ（False=一旦休止）
     return df

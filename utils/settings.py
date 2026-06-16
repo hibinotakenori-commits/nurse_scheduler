@@ -235,6 +235,11 @@ def staff_df_from_settings(data: Dict[str, Any]) -> pd.DataFrame:
     else:
         df["gakudo_required"] = df["gakudo_required"].fillna(False).astype(bool)
 
+    if "active" not in df.columns:
+        df["active"] = True
+    else:
+        df["active"] = df["active"].fillna(True).astype(bool)
+
     return df
 
 
