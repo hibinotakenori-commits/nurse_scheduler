@@ -219,6 +219,10 @@ def solve(
             b_n2 = x[s][d][N2]
             model.add(x[s][d + 1][N1] + x[s][d + 1][O] == 1).only_enforce_if(b_n2)
 
+        # H_late: 遅出（L）の翌日はN1または休（O）のみ
+        for d in range(n_days - 1):
+            model.add(x[s][d + 1][N1] + x[s][d + 1][O] == 1).only_enforce_if(x[s][d][L])
+
         # H3: 2連続夜勤後の翌日・翌々日は休み
         # N2[d-2]=1 かつ N2[d]=1 → O[d+1], O[d+2]
         # (H1によりパターンは N2[d-2]→O/N1, N1[d-1]→N2[d] なので d-2がN2かつdがN2＝2連続確定)
@@ -339,13 +343,12 @@ def solve(
     for s in range(n_staff):
         row = staff_df.iloc[s]
 
-        # S1: 日勤連続5日以上でペナルティ（重み: 100）
-        for d in range(n_days - 4):
-            consec_d = sum(x[s][d + i][D] for i in range(5))
-            over = model.new_bool_var(f"cons5_{s}_{d}")
-            model.add(consec_d >= 5).only_enforce_if(over)
-            model.add(consec_d <= 4).only_enforce_if(over.negated())
-            penalty_terms.append((over, 100))
+        # H_consec: 連続勤務は最大5暦日（夜勤N1/N2もそれぞれ1日としてカウント）
+        # 例: D D D D D N1 N2 = 7連勤 → 禁止。D D D N1 N2 = 5連勤 → 許容
+        for d in range(n_days - 5):
+            model.add(
+                sum(x[s][d + i][k] for i in range(6) for k in [D, L, N1, N2]) <= 5
+            )
 
         # S2: 月間勤務時間の目標からの乖離（重み: 10 per hour, 整数近似）
         target = int(row["target_hours"] * 2)  # 0.5h単位で整数化
@@ -360,14 +363,14 @@ def solve(
         penalty_terms.append((diff_over,  5))
         penalty_terms.append((diff_under, 5))
 
-        # S5: 連続勤務7日以上でペナルティ（重み: 80）
+        # S5: 連続勤務5日以上でペナルティ（H_consecと連動してなるべく短くなるよう誘導）
         work_shifts = [D, L, N1, N2]
-        for d in range(n_days - 6):
-            consec_w = sum(x[s][d + i][k] for i in range(7) for k in work_shifts)
-            over7 = model.new_bool_var(f"cons7_{s}_{d}")
-            model.add(consec_w >= 7).only_enforce_if(over7)
-            model.add(consec_w <= 6).only_enforce_if(over7.negated())
-            penalty_terms.append((over7, 80))
+        for d in range(n_days - 4):
+            consec_w = sum(x[s][d + i][k] for i in range(5) for k in work_shifts)
+            over5 = model.new_bool_var(f"cons5_{s}_{d}")
+            model.add(consec_w >= 5).only_enforce_if(over5)
+            model.add(consec_w <= 4).only_enforce_if(over5.negated())
+            penalty_terms.append((over5, 20))
 
     # S3: 毎日 日勤・遅出にリーダー1名以上（重み: 200）
     day_leader_idxs = [

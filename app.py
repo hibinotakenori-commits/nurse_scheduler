@@ -4,6 +4,7 @@
 # システム制約：テキスト → デフォルト優先度（1〜5）
 SYSTEM_CONSTRAINTS = [
     {"text": "夜勤明け（N2）の翌日はN1か公休のみ",             "default_priority": 5},
+    {"text": "遅出（L）の翌日はN1か公休のみ",                  "default_priority": 5},
     {"text": "2連続夜勤（N1→N2→N1→N2）の後の2日間は公休",    "default_priority": 3},
 ]
 PRIORITY_LABELS = {1: "1（低）", 2: "2", 3: "3", 4: "4", 5: "5（高）"}
