@@ -18,19 +18,23 @@
     }
   },
   "soft_weights": {
-    "soft_req": 50,
-    "exp_balance": 40,
-    "night_spread": 30,
-    "night_evenness": 20,
-    "day_leader": 200,
-    "night_leader": 150
+    "soft_req": 10,
+    "exp_balance": 10,
+    "night_spread": 10,
+    "night_evenness": 10,
+    "day_leader": 10,
+    "night_leader": 10
   },
   "hospital_holidays": [],
   "daycare_closed": [
+    "2026-07-26",
+    "2026-08-09",
     "2026-08-11"
   ],
   "nightcare_open": [],
   "gakudo_open": [],
+  "system_constraint_priorities": {},
+  "user_constraints": [],
   "staff": [
     {
       "id": 1,

@@ -1,3 +1,25 @@
+# ── このプロジェクト固有 ──────────────────────────────────────
+# ローカルデータ（個人情報を含む可能性があるため除外）
+settings.json
+requests.json
+
+# Streamlit シークレット
+.streamlit/secrets.toml
+
+# macOS
+.DS_Store
+
+# エディタ
+.vscode/
+.idea/
+
+# node_modules / フロントエンドビルド（念のため）
+node_modules/
+dist/
+build/
+.next/
+# ─────────────────────────────────────────────────────────────
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
