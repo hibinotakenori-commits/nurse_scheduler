@@ -358,8 +358,8 @@ with tab_schedule:
             )
             st.rerun()
 
-        # リセットボタン
-        col_reset, col_space = st.columns([1, 5])
+        # リセット＆ダウンロードボタン
+        col_reset, col_xlsx, col_csv, col_space = st.columns([2, 1, 1, 3])
         with col_reset:
             if st.button("↩ ソルバー結果に戻す"):
                 st.session_state.edited_schedule_df = st.session_state.schedule_df.copy()
@@ -371,6 +371,28 @@ with tab_schedule:
                     hospital_holidays=st.session_state.hospital_holidays,
                 )
                 st.rerun()
+        with col_xlsx:
+            _xlsx = export_excel(edited, staff_df, dates,
+                                 st.session_state.violations,
+                                 hospital_holidays=st.session_state.hospital_holidays)
+            st.download_button(
+                "📊",
+                data=_xlsx,
+                file_name=f"勤務表_{target_year}{target_month:02d}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                help="Excel ダウンロード",
+                use_container_width=True,
+            )
+        with col_csv:
+            st.download_button(
+                "📄",
+                data=export_csv(edited, staff_df, dates,
+                                hospital_holidays=st.session_state.hospital_holidays),
+                file_name=f"勤務表_{target_year}{target_month:02d}.csv",
+                mime="text/csv",
+                help="CSV ダウンロード",
+                use_container_width=True,
+            )
 
         st.divider()
         st.subheader("日別集計")
