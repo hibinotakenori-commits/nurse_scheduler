@@ -879,11 +879,18 @@ with tab_ward:
         st.warning("日勤の休日最大人数が下限を下回っています。")
 
     st.markdown("**遅出**")
-    c5, c6, _, _ = st.columns(4)
+    c5, c6, c7, _ = st.columns(4)
     with c5:
         st.number_input("遅出（平日）",  min_value=0, max_value=10, step=1, key="req_l_weekday")
     with c6:
         st.number_input("遅出（休日）",  min_value=0, max_value=10, step=1, key="req_l_holiday")
+    with c7:
+        l_first_year_ok = st.checkbox(
+            "1年目も遅出可",
+            value=bool(st.session_state.requirements.get("L", {}).get("first_year_ok", False)),
+            key="req_l_fy_ok",
+            help="オフにすると1年目看護師は遅出（L）に入れません",
+        )
 
     st.markdown("**夜勤**")
     c5, c6, c7 = st.columns(3)
@@ -909,7 +916,8 @@ with tab_ward:
               "holiday":     st.session_state.req_d_holiday,
               "holiday_max": st.session_state.req_d_holiday_max},
         "L": {"weekday": st.session_state.req_l_weekday,
-              "holiday": st.session_state.req_l_holiday},
+              "holiday": st.session_state.req_l_holiday,
+              "first_year_ok": l_first_year_ok},
         "N": {"base":            st.session_state.req_n_base,
               "max":             st.session_state.req_n_max,
               "first_year_plus1": fy_plus1},

@@ -160,6 +160,9 @@ def solve(
     n_night_max  = max(n_night_max, n_night_base)   # max >= base を保証
     n_fy_plus1   = bool(_n_cfg.get("first_year_plus1", True))
 
+    # 遅出設定
+    l_first_year_ok = bool(requirements.get("L", {}).get("first_year_ok", False))
+
     model = cp_model.CpModel()
 
     # ── 変数 ──────────────────────────────────────────────────
@@ -194,6 +197,10 @@ def solve(
             if not night_ok:
                 model.add(x[s][d][N1] == 0)
                 model.add(x[s][d][N2] == 0)
+
+            # H_l_fy: 1年目遅出不可（設定がオフの場合）
+            if not l_first_year_ok and s in first_year_idx:
+                model.add(x[s][d][L] == 0)
 
             # H6: 夜勤専任は N1・N2 のみ（対象期間）
             if is_dedicated(s, d):
