@@ -509,6 +509,13 @@ with tab_summary:
         render_summary(st.session_state.edited_schedule_df, staff_df, dates)
 
 with tab_requests:
+    st.info(
+        "💡 スタッフ専用の希望入力画面を別ポートで起動できます。\n\n"
+        "```\nstreamlit run staff_app.py --server.port 8502\n```\n\n"
+        "スタッフは `http://localhost:8502` にアクセスして希望を入力・保存できます。"
+        "保存された内容はこの画面にも即時反映されます。"
+    )
+    st.divider()
     render_request_calendar(staff_df, dates)
     st.divider()
     col_save_req, col_save_info = st.columns([1, 4])
