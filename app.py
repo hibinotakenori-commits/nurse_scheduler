@@ -861,8 +861,6 @@ with tab_common:
         new_closed = st.date_input(
             "休園日を追加",
             value=None,
-            min_value=dates[0],
-            max_value=dates[-1],
             key="daycare_add_date",
         )
     with col_dc2:
@@ -903,8 +901,6 @@ with tab_common:
         new_nc = st.date_input(
             "受け入れ日を追加",
             value=None,
-            min_value=dates[0],
-            max_value=dates[-1],
             key="nightcare_add_date",
         )
     with col_nc2:
@@ -962,8 +958,6 @@ with tab_common:
         new_gk = st.date_input(
             "受け入れ日を追加",
             value=None,
-            min_value=dates[0],
-            max_value=dates[-1],
             key="gakudo_add_date",
         )
     with col_gk2:
@@ -1010,8 +1004,6 @@ with tab_common:
         new_hosp_hol = st.date_input(
             "病院独自休日を追加",
             value=None,
-            min_value=dates[0],
-            max_value=dates[-1],
             key="hospital_holiday_add_date",
         )
     with col_hh2:
