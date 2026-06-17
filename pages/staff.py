@@ -1,4 +1,4 @@
-"""スタッフ向け勤務希望入力ページ（管理機能なし）。"""
+"""スタッフ向け勤務希望入力ページ（モバイル最適化・管理機能なし）。"""
 import datetime
 import sys
 from pathlib import Path
@@ -10,10 +10,8 @@ import pandas as pd
 import streamlit as st
 
 from utils.settings import load_settings, staff_df_from_settings, load_requests, save_requests
-from utils.time_utils import schedule_dates, REQUEST_OPTIONS, REQUEST_TO_SHIFT
+from utils.time_utils import schedule_dates, REQUEST_TO_SHIFT
 from ui.request_calendar import (
-    _render_month_calendar,
-    _render_staff_summary,
     _code_to_option,
     _FULL_TO_SHORT,
     _SHORT_TO_FULL,
@@ -24,7 +22,7 @@ from ui.request_calendar import (
 # set_page_config は app.py 側で呼ばれるため省略
 # （?page=staff 経由で実行されるモジュールとして使用）
 
-# サイドバー・ページナビゲーションを完全非表示
+# ── UI完全隔離CSS ────────────────────────────────────────────
 st.markdown("""
 <style>
 section[data-testid="stSidebar"]       { display: none !important; }
@@ -33,9 +31,17 @@ button[data-testid="collapsedControl"] { display: none !important; }
 #MainMenu                              { display: none !important; }
 footer                                 { display: none !important; }
 header[data-testid="stHeader"]         { display: none !important; }
+
+/* モバイル向けコンパクト化 */
+.block-container { padding: 1rem 1rem 2rem !important; max-width: 600px !important; }
+div[data-testid="stSelectbox"] label   { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
 
+WEEKDAY_NAMES = "月火水木金土日"
+_HOL_COLOR  = "#d32f2f"
+_SAT_COLOR  = "#1565c0"
+_NORM_COLOR = "#212121"
 
 # ── 初期化 ───────────────────────────────────────────────────
 def _init():
@@ -57,22 +63,20 @@ staff_df = st.session_state.staff_df
 
 # ── ヘッダー ─────────────────────────────────────────────────
 st.markdown("""
-<div style='background:#1565c0;color:white;padding:16px 24px;
-            border-radius:8px;margin-bottom:20px'>
-  <span style='font-size:22px;font-weight:bold'>📅 勤務希望入力</span>
-  <span style='font-size:13px;margin-left:16px;opacity:0.85'>3A病棟</span>
+<div style='background:#1565c0;color:white;padding:14px 18px;
+            border-radius:8px;margin-bottom:16px'>
+  <div style='font-size:20px;font-weight:bold'>📅 勤務希望入力</div>
+  <div style='font-size:12px;opacity:0.85;margin-top:2px'>3A病棟</div>
 </div>
 """, unsafe_allow_html=True)
 
 # ── 名前選択 ─────────────────────────────────────────────────
 _names = staff_df.sort_values("order")["name"].tolist()
-_name_col, _period_col = st.columns([2, 3])
-with _name_col:
-    selected_name = st.selectbox(
-        "👤 あなたの名前を選んでください",
-        ["（選択してください）"] + _names,
-        key="staff_self_name",
-    )
+selected_name = st.selectbox(
+    "👤 あなたの名前",
+    ["（選択してください）"] + _names,
+    key="staff_self_name",
+)
 
 if selected_name == "（選択してください）":
     st.info("まず上のメニューからあなたの名前を選択してください。")
@@ -87,17 +91,16 @@ _default_year  = st.session_state.get("_staff_year",  now.year)
 _default_month = st.session_state.get("_staff_month", now.month)
 _year_options  = list(range(now.year - 1, now.year + 3))
 
-with _period_col:
-    _pc1, _pc2 = st.columns(2)
-    with _pc1:
-        _year = st.selectbox(
-            "📆 年",
-            _year_options,
-            index=_year_options.index(_default_year) if _default_year in _year_options else 1,
-            key="_staff_year",
-        )
-    with _pc2:
-        _month = st.selectbox("月", range(1, 13), index=_default_month - 1, key="_staff_month")
+_pc1, _pc2 = st.columns(2)
+with _pc1:
+    _year = st.selectbox(
+        "📆 年",
+        _year_options,
+        index=_year_options.index(_default_year) if _default_year in _year_options else 1,
+        key="_staff_year",
+    )
+with _pc2:
+    _month = st.selectbox("月", range(1, 13), index=_default_month - 1, key="_staff_month")
 
 dates = schedule_dates(_year, _month)
 st.caption(f"入力期間: {dates[0].strftime('%Y/%m/%d')} 〜 {dates[-1].strftime('%Y/%m/%d')}")
@@ -123,26 +126,76 @@ if (st.session_state.get("_sp_prev_sid") != selected_sid
     st.session_state["_sp_prev_dates"] = _dates_key
 
 # ── 凡例 ─────────────────────────────────────────────────────
-legend_html = "　".join(
-    f'<span style="background:{_BADGE_COLOR[s][0]};color:{_BADGE_COLOR[s][1]};'
-    f'border-radius:3px;padding:1px 6px;font-size:12px;font-weight:bold">{s}</span>'
-    for s in SHORT_OPTIONS[1:]
+legend_parts = []
+for s in SHORT_OPTIONS[1:]:
+    bg, fg = _BADGE_COLOR[s]
+    legend_parts.append(
+        f'<span style="background:{bg};color:{fg};border-radius:4px;'
+        f'padding:3px 7px;font-size:12px;font-weight:bold;'
+        f'display:inline-block;margin:2px 2px">{s}</span>'
+    )
+st.markdown(
+    f"<div style='line-height:2'>" + "".join(legend_parts) + "</div>",
+    unsafe_allow_html=True,
 )
-st.markdown(legend_html, unsafe_allow_html=True)
 st.markdown("<div style='margin:8px 0'></div>", unsafe_allow_html=True)
 
-# ── カレンダー + 一覧 ─────────────────────────────────────────
+# ── カレンダー（縦リスト形式） ───────────────────────────────
 jp_hols = holidays_lib.Japan(years={d.year for d in dates})
-schedule_dates_set = set(dates)
 months = list(dict.fromkeys((d.year, d.month) for d in dates))
+schedule_dates_set = set(dates)
 
-col_cal, col_summary = st.columns([3, 2])
+for ym in months:
+    yr, mo = ym
+    st.markdown(
+        f"<div style='font-size:16px;font-weight:bold;margin:12px 0 6px;"
+        f"padding:6px 10px;background:#f0f4f8;border-radius:6px'>"
+        f"📅 {yr}年{mo}月</div>",
+        unsafe_allow_html=True,
+    )
+    month_dates = [d for d in dates if d.year == yr and d.month == mo]
+    for d in month_dates:
+        wkey = f"req_cal_w_{selected_sid}_{d}"
+        chosen = st.session_state.get(wkey, "－")
 
-with col_cal:
-    for ym in months:
-        _render_month_calendar(ym[0], ym[1], schedule_dates_set, selected_sid, jp_hols)
+        # 曜日・色
+        wd = WEEKDAY_NAMES[d.weekday()]
+        is_hol = d.weekday() == 6 or d in jp_hols
+        is_sat = d.weekday() == 5
+        day_color = _HOL_COLOR if is_hol else (_SAT_COLOR if is_sat else _NORM_COLOR)
 
-# ウィジェットキーから new_rows を構築
+        # バッジ（選択済みの場合）
+        if chosen != "－" and chosen in _BADGE_COLOR:
+            bg, fg = _BADGE_COLOR[chosen]
+            badge_html = (
+                f'<span style="background:{bg};color:{fg};border-radius:4px;'
+                f'padding:2px 8px;font-size:13px;font-weight:bold">{chosen}</span>'
+            )
+        else:
+            badge_html = '<span style="color:#bbb;font-size:13px">－</span>'
+
+        col_date, col_sel = st.columns([2, 3])
+        with col_date:
+            st.markdown(
+                f"<div style='padding:8px 4px 0'>"
+                f"<span style='color:{day_color};font-size:17px;font-weight:bold'>"
+                f"{mo}/{d.day}（{wd}）</span><br>"
+                f"<span style='font-size:12px'>{badge_html}</span>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+        with col_sel:
+            st.selectbox(
+                f"_{d}",
+                SHORT_OPTIONS,
+                index=SHORT_OPTIONS.index(chosen) if chosen in SHORT_OPTIONS else 0,
+                key=wkey,
+                label_visibility="collapsed",
+            )
+
+st.markdown("<div style='margin:12px 0'></div>", unsafe_allow_html=True)
+
+# ── new_rows 構築 ────────────────────────────────────────────
 new_rows = []
 for d in dates:
     wkey = f"req_cal_w_{selected_sid}_{d}"
@@ -174,20 +227,37 @@ if not merged.reset_index(drop=True).equals(
         st.session_state.requests_df.reset_index(drop=True)):
     st.session_state.requests_df = merged
 
-with col_summary:
-    st.markdown(
-        f"<div style='font-size:15px;font-weight:bold;color:#333;"
-        f"margin-bottom:6px'>👤 {selected_name}</div>",
-        unsafe_allow_html=True,
-    )
-    _render_staff_summary(selected_name, selected_sid, new_rows, jp_hols)
+# ── 入力済み一覧（折りたたみ） ──────────────────────────────
+if new_rows:
+    fixed_cnt = sum(1 for r in new_rows if r["is_fixed"])
+    soft_cnt  = len(new_rows) - fixed_cnt
+    with st.expander(
+        f"📋 入力済み {len(new_rows)}件（🔒確定{fixed_cnt} / 💭希望{soft_cnt}）",
+        expanded=False,
+    ):
+        for row in sorted(new_rows, key=lambda r: r["date"]):
+            d  = row["date"]
+            wd = WEEKDAY_NAMES[d.weekday()]
+            is_hol = d.weekday() == 6 or d in jp_hols
+            is_sat = d.weekday() == 5
+            dc = _HOL_COLOR if is_hol else (_SAT_COLOR if is_sat else _NORM_COLOR)
+            short = _FULL_TO_SHORT.get(_code_to_option(row["shift"], row["is_fixed"]), "?")
+            if short in _BADGE_COLOR:
+                bg, fg = _BADGE_COLOR[short]
+                b = (f'<span style="background:{bg};color:{fg};border-radius:4px;'
+                     f'padding:2px 8px;font-size:13px;font-weight:bold">{short}</span>')
+            else:
+                b = short
+            kind = "🔒 確定" if row["is_fixed"] else "💭 希望"
+            st.markdown(
+                f"<div style='padding:4px 0;border-bottom:1px solid #eee'>"
+                f"<span style='color:{dc};font-weight:bold'>{d.month}/{d.day}（{wd}）</span>"
+                f"　{b}　<span style='font-size:12px;color:#666'>{kind}</span></div>",
+                unsafe_allow_html=True,
+            )
 
 # ── 保存ボタン ───────────────────────────────────────────────
 st.divider()
-_s1, _s2 = st.columns([1, 4])
-with _s1:
-    if st.button("💾 希望を保存", type="primary", use_container_width=True, key="staff_save"):
-        save_requests(st.session_state.requests_df)
-        st.success("✅ 希望を保存しました。")
-with _s2:
-    st.caption("保存すると担当師長の画面に反映されます。")
+if st.button("💾 希望を保存する", type="primary", use_container_width=True, key="staff_save"):
+    save_requests(st.session_state.requests_df)
+    st.success("✅ 希望を保存しました。担当師長の画面に反映されます。")
