@@ -30,6 +30,7 @@ from streamlit_sortables import sort_items
 from ui.request_calendar import render_request_calendar
 from utils.time_utils import schedule_dates
 from utils.schedule_store import save_schedule, list_saved_schedules, get_prev_boundary
+from utils.schedule_import import parse_excel, parse_image, schedule_dict_to_df
 
 st.set_page_config(
     page_title="3A病棟 勤務表作成",
@@ -427,6 +428,79 @@ with tab_schedule:
     st.subheader("日別集計")
     render_day_summary(edited, dates, st.session_state.requirements,
                        hospital_holidays=st.session_state.hospital_holidays)
+
+    # ── 前月勤務表の取り込み ──────────────────────────────────
+    st.divider()
+    with st.expander("📥 前月勤務表の取り込み（月またぎ制約に使用）"):
+        st.caption("前月末のシフトを読み込んで、連続勤務・夜勤ペアなどの月またぎ制約を正しく守ります。")
+
+        # 取り込み対象の年月を選択（デフォルトは現在の対象月の前月）
+        _imp_prev_month = target_month - 1 if target_month > 1 else 12
+        _imp_prev_year  = target_year if target_month > 1 else target_year - 1
+        _imp_col1, _imp_col2 = st.columns(2)
+        with _imp_col1:
+            _imp_year  = st.selectbox("取り込む勤務表の年", range(target_year - 2, target_year + 1),
+                                      index=2, key="imp_year")
+        with _imp_col2:
+            _imp_month = st.selectbox("取り込む勤務表の月", range(1, 13),
+                                      index=_imp_prev_month - 1, key="imp_month")
+
+        _imp_file = st.file_uploader(
+            "Excelまたは画像ファイルをアップロード",
+            type=["xlsx", "xls", "png", "jpg", "jpeg"],
+            key="imp_file_uploader",
+        )
+
+        if _imp_file is not None:
+            _imp_bytes = _imp_file.read()
+            _imp_name  = _imp_file.name.lower()
+            _imp_schedule = None
+            _imp_warns: list = []
+
+            with st.spinner("解析中..."):
+                if _imp_name.endswith((".xlsx", ".xls")):
+                    _imp_schedule, _imp_warns = parse_excel(
+                        _imp_bytes, staff_df, _imp_year, _imp_month
+                    )
+                else:
+                    _mime = "image/png" if _imp_name.endswith(".png") else "image/jpeg"
+                    _imp_schedule, _imp_warns = parse_image(
+                        _imp_bytes, _mime, staff_df, _imp_year, _imp_month
+                    )
+
+            for _w in _imp_warns:
+                st.warning(_w)
+
+            if _imp_schedule:
+                _imp_df = schedule_dict_to_df(_imp_schedule, staff_df)
+                st.success(f"✅ {len(_imp_schedule)} 名分のシフトを読み込みました（{len(_imp_df.columns)} 日間）")
+                with st.expander("取り込み内容を確認"):
+                    st.dataframe(_imp_df, use_container_width=True)
+
+                if st.button("💾 前月勤務表として保存する", type="primary", key="imp_save_btn"):
+                    # staff_id をインデックスにした DataFrame を save_schedule に渡す
+                    _id_to_name = dict(zip(staff_df["name"], staff_df["id"]))
+                    _imp_df_by_id = _imp_df.copy()
+                    _imp_df_by_id.index = [
+                        _imp_schedule_key
+                        for _imp_schedule_key in _imp_schedule.keys()
+                    ]
+                    # schedule_dict → DataFrame（index=staff_id）
+                    import datetime as _dt
+                    _all_dates = sorted({d for v in _imp_schedule.values() for d in v.keys()})
+                    _sdf_for_save = pd.DataFrame(
+                        index=sorted(_imp_schedule.keys()),
+                        columns=_all_dates,
+                        dtype=object,
+                    )
+                    for _sid, _shifts in _imp_schedule.items():
+                        for _d, _s in _shifts.items():
+                            _sdf_for_save.at[_sid, _d] = _s
+                    _sdf_for_save = _sdf_for_save.fillna("O")
+                    save_schedule(_sdf_for_save, _imp_year, _imp_month)
+                    st.success(f"✅ {_imp_year}/{_imp_month:02d}期の勤務表を保存しました。次回の勤務表作成時に月またぎ制約として自動で使用されます。")
+            else:
+                st.error("シフトデータを取得できませんでした。")
 
 with tab_summary:
     if st.session_state.edited_schedule_df is None:
