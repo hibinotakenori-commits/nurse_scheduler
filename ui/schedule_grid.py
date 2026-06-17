@@ -95,6 +95,35 @@ def render_grid(
     n_rows = len(display_df)
     grid_height = min(60 + 35 * n_rows, 900)
 
+    st.markdown("""
+<style>
+/* セル編集ドロップダウンのスタイル */
+.ag-popup-editor {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25) !important;
+    border: 1px solid var(--primary-color) !important;
+    border-radius: 6px !important;
+    overflow: hidden !important;
+}
+.ag-rich-select,
+.ag-rich-select-list {
+    background-color: var(--secondary-background-color) !important;
+}
+.ag-rich-select-row {
+    color: var(--text-color) !important;
+    padding: 4px 8px !important;
+}
+.ag-rich-select-row:hover {
+    background-color: var(--primary-color) !important;
+    color: #ffffff !important;
+}
+.ag-rich-select-row.ag-rich-select-row-selected {
+    background-color: var(--primary-color) !important;
+    color: #ffffff !important;
+    opacity: 0.85;
+}
+</style>
+""", unsafe_allow_html=True)
+
     edited_labels = st.data_editor(
         display_df,
         column_config=col_config,
