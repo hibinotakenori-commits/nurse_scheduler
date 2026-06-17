@@ -33,8 +33,25 @@ footer                                 { display: none !important; }
 header[data-testid="stHeader"]         { display: none !important; }
 
 /* モバイル向けコンパクト化 */
-.block-container { padding: 1rem 1rem 2rem !important; max-width: 600px !important; }
+.block-container { padding: 0.6rem 0.8rem 2rem !important; max-width: 600px !important; }
 div[data-testid="stSelectbox"] label   { display: none !important; }
+
+/* 行間・列間の余白を詰める */
+div[data-testid="stHorizontalBlock"] {
+    gap: 4px !important;
+    margin-bottom: 0px !important;
+}
+div[data-testid="stColumn"] { padding: 0 !important; }
+div[data-testid="stSelectbox"] { margin-bottom: 0 !important; }
+div[data-testid="stSelectbox"] > div { margin-bottom: 0 !important; }
+.element-container { margin-bottom: 0 !important; }
+/* selectbox の高さを縮小 */
+div[data-testid="stSelectbox"] > div > div[data-baseweb="select"] > div {
+    min-height: 36px !important;
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+    font-size: 13px !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -186,21 +203,21 @@ for ym in months:
         else:
             badge_html = '<span style="color:#bbb;font-size:13px">―</span>'
 
+        border_color = '#c62828' if is_hol else ('#1565c0' if is_sat else '#e0e0e0')
         col_date, col_sel = st.columns([2, 3])
         with col_date:
             st.markdown(
-                f"<div style='background:{row_bg};border-radius:6px;"
-                f"padding:8px 10px;margin:2px 0;border-left:4px solid "
-                f"{'#c62828' if is_hol else ('#1565c0' if is_sat else '#e0e0e0')}'>"
-                f"<span style='color:{day_color};font-size:17px;font-weight:bold'>"
+                f"<div style='background:{row_bg};border-radius:4px;"
+                f"padding:5px 8px 3px;border-left:4px solid {border_color};"
+                f"min-height:44px'>"
+                f"<span style='color:{day_color};font-size:15px;font-weight:bold'>"
                 f"{mo}/{d.day}</span>"
-                f"<span style='color:{wd_color};font-size:14px;margin-left:6px'>（{wd}）</span>"
-                f"<br><span style='font-size:12px'>{badge_html}</span>"
+                f"<span style='color:{wd_color};font-size:13px;margin-left:4px'>({wd})</span>"
+                f"<br><span style='font-size:11px'>{badge_html}</span>"
                 f"</div>",
                 unsafe_allow_html=True,
             )
         with col_sel:
-            st.markdown("<div style='padding-top:6px'>", unsafe_allow_html=True)
             st.selectbox(
                 f"_{d}",
                 SHORT_OPTIONS,
@@ -208,7 +225,6 @@ for ym in months:
                 key=wkey,
                 label_visibility="collapsed",
             )
-            st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("<div style='margin:12px 0'></div>", unsafe_allow_html=True)
 
