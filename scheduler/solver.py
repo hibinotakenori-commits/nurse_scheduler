@@ -43,6 +43,7 @@ def solve(
     hospital_holidays: Optional[List] = None,      # 病院独自休日リスト
     time_limit_sec: int = 60,
     soft_weights: Optional[Dict[str, int]] = None,  # ソフト制約の重み
+    prev_schedule: Optional[Dict] = None,           # 前月末シフト {staff_id: {date: shift}}
 ) -> Tuple[Optional[pd.DataFrame], str, List[Dict]]:
     """
     Returns:
@@ -220,6 +221,36 @@ def solve(
             model.add(x[s][d][N1] == 1).only_enforce_if(x[s][d + 1][N2])
         # 最終日(n_days-1)のN1は翌月へ持ち越し → 禁止しない
         # 初日(d=0)のN2は前月からの持ち越し → 前日N1なしで許容済み（上のループがd=0のN2をカバーしない）
+
+        # H_prev: 前月末シフトによる月またぎ境界制約
+        if prev_schedule:
+            _prev_row = prev_schedule.get(int(staff_ids[s]), {})
+            if _prev_row:
+                _prev_dates = sorted(_prev_row.keys())
+                _p_last  = _prev_row.get(_prev_dates[-1])                               # 前月最終日
+                _p_2nd   = _prev_row.get(_prev_dates[-2]) if len(_prev_dates) >= 2 else None  # 前月末2日目
+                _p_3rd   = _prev_row.get(_prev_dates[-3]) if len(_prev_dates) >= 3 else None  # 前月末3日目
+
+                if _p_last == "N1":
+                    # 前月最終日がN1 → 初日はN2確定
+                    model.add(x[s][0][N2] == 1)
+                    # さらに前月末2日がN2だった場合（2連続夜勤がd=0のN2で完成）→ d=1,d=2はO
+                    if _p_2nd == "N2":
+                        if n_days > 1:
+                            model.add(x[s][1][O] == 1)
+                        if n_days > 2:
+                            model.add(x[s][2][O] == 1)
+                elif _p_last == "N2":
+                    # 前月最終日がN2 → 初日はN1またはO（N2不可・D不可）
+                    model.add(x[s][0][N1] + x[s][0][O] == 1)
+                    # 前月末3日がN2かつ最終日もN2 → 2連続夜勤完了: d=0,d=1はO
+                    if _p_3rd == "N2":
+                        model.add(x[s][0][O] == 1)
+                        if n_days > 1:
+                            model.add(x[s][1][O] == 1)
+                elif _p_last == "L":
+                    # 前月最終日が遅出 → 初日はN1またはO
+                    model.add(x[s][0][N1] + x[s][0][O] == 1)
 
         # H2: N2の翌日はN1またはO
         for d in range(n_days - 1):

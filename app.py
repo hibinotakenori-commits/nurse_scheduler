@@ -29,6 +29,7 @@ from utils.settings import (load_settings, save_settings, staff_df_from_settings
 from streamlit_sortables import sort_items
 from ui.request_calendar import render_request_calendar
 from utils.time_utils import schedule_dates
+from utils.schedule_store import save_schedule, list_saved_schedules, get_prev_boundary
 
 st.set_page_config(
     page_title="3A病棟 勤務表作成",
@@ -242,6 +243,7 @@ with st.sidebar:
 
 if run_solver:
     st.session_state.infeasibility_reasons = []  # 前回の分析結果をリセット
+    _prev_boundary = get_prev_boundary(target_year, target_month)
     _solver_kwargs = dict(
         staff_df=staff_df,
         requests_df=st.session_state.requests_df,
@@ -256,6 +258,7 @@ if run_solver:
         hospital_holidays=st.session_state.hospital_holidays,
         time_limit_sec=time_limit,
         soft_weights=st.session_state.soft_weights,
+        prev_schedule=_prev_boundary,
     )
     with st.spinner("最適化中...（しばらくお待ちください）"):
         sdf, status, warnings = solve(**_solver_kwargs)
@@ -361,10 +364,14 @@ with tab_schedule:
             )
             st.rerun()
 
-        # リセット＆ダウンロードボタン
-        col_reset, col_xlsx, col_csv, col_space = st.columns([2, 1, 1, 3])
+        # 保存・リセット・ダウンロードボタン
+        col_save, col_reset, col_xlsx, col_csv, col_space = st.columns([2, 2, 1, 1, 2])
+        with col_save:
+            if st.button("💾 勤務表を保存", type="primary", use_container_width=True):
+                save_schedule(st.session_state.edited_schedule_df, target_year, target_month)
+                st.success(f"✅ {target_year}/{target_month:02d}期の勤務表を保存しました")
         with col_reset:
-            if st.button("↩ ソルバー結果に戻す"):
+            if st.button("↩ ソルバー結果に戻す", use_container_width=True):
                 st.session_state.edited_schedule_df = st.session_state.schedule_df.copy()
                 st.session_state.violations = validate(
                     st.session_state.schedule_df, staff_df, dates,
@@ -396,6 +403,14 @@ with tab_schedule:
                 help="CSV ダウンロード",
                 use_container_width=True,
             )
+
+        # 保存済み一覧
+        _saved_list = list_saved_schedules()
+        if _saved_list:
+            with st.expander(f"📁 保存済み勤務表（{len(_saved_list)}件）"):
+                for _sv in _saved_list:
+                    _at = _sv["saved_at"][:16].replace("T", " ") if _sv["saved_at"] else "―"
+                    st.caption(f"・{_sv['year']}/{_sv['month']:02d}期　保存日時: {_at}")
 
         st.divider()
         st.subheader("日別集計")
