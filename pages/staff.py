@@ -149,7 +149,7 @@ for ym in months:
     yr, mo = ym
     st.markdown(
         f"<div style='font-size:16px;font-weight:bold;margin:12px 0 6px;"
-        f"padding:6px 10px;background:#f0f4f8;border-radius:6px'>"
+        f"padding:8px 14px;background:#1565c0;color:white;border-radius:8px'>"
         f"📅 {yr}年{mo}月</div>",
         unsafe_allow_html=True,
     )
@@ -158,33 +158,49 @@ for ym in months:
         wkey = f"req_cal_w_{selected_sid}_{d}"
         chosen = st.session_state.get(wkey, "－")
 
-        # 曜日・色
+        # 曜日・背景色
         wd = WEEKDAY_NAMES[d.weekday()]
         is_hol = d.weekday() == 6 or d in jp_hols
         is_sat = d.weekday() == 5
-        day_color = _HOL_COLOR if is_hol else (_SAT_COLOR if is_sat else _NORM_COLOR)
 
-        # バッジ（選択済みの場合）
+        if is_hol:
+            row_bg   = "#fff5f5"
+            day_color = "#c62828"
+            wd_color  = "#c62828"
+        elif is_sat:
+            row_bg   = "#f0f4ff"
+            day_color = "#1565c0"
+            wd_color  = "#1565c0"
+        else:
+            row_bg   = "#ffffff"
+            day_color = "#212121"
+            wd_color  = "#555555"
+
+        # 選択済みバッジ
         if chosen != "－" and chosen in _BADGE_COLOR:
             bg, fg = _BADGE_COLOR[chosen]
             badge_html = (
                 f'<span style="background:{bg};color:{fg};border-radius:4px;'
-                f'padding:2px 8px;font-size:13px;font-weight:bold">{chosen}</span>'
+                f'padding:3px 10px;font-size:13px;font-weight:bold">{chosen}</span>'
             )
         else:
-            badge_html = '<span style="color:#bbb;font-size:13px">－</span>'
+            badge_html = '<span style="color:#bbb;font-size:13px">―</span>'
 
         col_date, col_sel = st.columns([2, 3])
         with col_date:
             st.markdown(
-                f"<div style='padding:8px 4px 0'>"
+                f"<div style='background:{row_bg};border-radius:6px;"
+                f"padding:8px 10px;margin:2px 0;border-left:4px solid "
+                f"{'#c62828' if is_hol else ('#1565c0' if is_sat else '#e0e0e0')}'>"
                 f"<span style='color:{day_color};font-size:17px;font-weight:bold'>"
-                f"{mo}/{d.day}（{wd}）</span><br>"
-                f"<span style='font-size:12px'>{badge_html}</span>"
+                f"{mo}/{d.day}</span>"
+                f"<span style='color:{wd_color};font-size:14px;margin-left:6px'>（{wd}）</span>"
+                f"<br><span style='font-size:12px'>{badge_html}</span>"
                 f"</div>",
                 unsafe_allow_html=True,
             )
         with col_sel:
+            st.markdown("<div style='padding-top:6px'>", unsafe_allow_html=True)
             st.selectbox(
                 f"_{d}",
                 SHORT_OPTIONS,
@@ -192,6 +208,7 @@ for ym in months:
                 key=wkey,
                 label_visibility="collapsed",
             )
+            st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("<div style='margin:12px 0'></div>", unsafe_allow_html=True)
 
