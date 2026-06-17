@@ -333,8 +333,17 @@ if st.session_state.solver_status:
 tab_schedule, tab_summary, tab_requests, tab_staff, tab_ward, tab_common = st.tabs(["📋 勤務表", "📊 集計", "📅 希望入力", "👤 スタッフ", "🏨 病棟独自設定", "🏥 院内共通設定"])
 
 with tab_schedule:
-    if st.session_state.edited_schedule_df is None:
-        st.info("サイドバーの「▶ 勤務表を自動作成」ボタンで勤務表を生成してください。")
+    _solver_done = st.session_state.edited_schedule_df is not None
+
+    if not _solver_done:
+        # ソルバー未実行：全員「休」の空の票を表示
+        sdf = pd.DataFrame(
+            "O",
+            index=staff_df["id"].tolist(),
+            columns=dates,
+        )
+        viol = []
+        st.caption("💡 サイドバーの「▶ 勤務表を自動作成」で生成するか、セルをクリックして直接入力できます。")
     else:
         sdf = st.session_state.edited_schedule_df
         viol = st.session_state.violations
@@ -346,41 +355,43 @@ with tab_schedule:
                 for v in viol:
                     st.write(f"- [{v.get('date','')}] {v['type']}  {v.get('detail','')}")
         else:
-            st.success("制約違反なし")
+            st.success("制約違反なし ✅　　💡 セルをクリックするとシフトを変更できます。")
 
-        # グリッド編集
-        edited = render_grid(sdf, staff_df, dates, viol, key_prefix="schedule_editor",
-                             hospital_holidays=st.session_state.hospital_holidays)
+    # グリッド（常に表示・常に編集可能）
+    edited = render_grid(sdf, staff_df, dates, viol, key_prefix="schedule_editor",
+                         hospital_holidays=st.session_state.hospital_holidays)
 
-        if not edited.equals(sdf):
-            # ヤ1/ヤ2 ペア自動補完
-            edited = _apply_night_pairing(sdf, edited, dates)
-            st.session_state.edited_schedule_df = edited
-            first_year_ids = staff_df[staff_df["years_exp"] == 1]["id"].tolist()
-            st.session_state.violations = validate(
-                edited, staff_df, dates, st.session_state.requirements, first_year_ids,
-                daycare_closed_dates=st.session_state.daycare_closed,
-                hospital_holidays=st.session_state.hospital_holidays,
-            )
-            st.rerun()
+    if not edited.equals(sdf):
+        # ヤ1/ヤ2 ペア自動補完
+        edited = _apply_night_pairing(sdf, edited, dates)
+        st.session_state.edited_schedule_df = edited
+        first_year_ids = staff_df[staff_df["years_exp"] == 1]["id"].tolist()
+        st.session_state.violations = validate(
+            edited, staff_df, dates, st.session_state.requirements, first_year_ids,
+            daycare_closed_dates=st.session_state.daycare_closed,
+            hospital_holidays=st.session_state.hospital_holidays,
+        )
+        st.rerun()
 
-        # 保存・リセット・ダウンロードボタン
+    # 保存・リセット・ダウンロードボタン（編集データがある場合のみ）
+    if st.session_state.edited_schedule_df is not None:
         col_save, col_reset, col_xlsx, col_csv, col_space = st.columns([2, 2, 1, 1, 2])
         with col_save:
             if st.button("💾 勤務表を保存", type="primary", use_container_width=True):
                 save_schedule(st.session_state.edited_schedule_df, target_year, target_month)
                 st.success(f"✅ {target_year}/{target_month:02d}期の勤務表を保存しました")
         with col_reset:
-            if st.button("↩ ソルバー結果に戻す", use_container_width=True):
-                st.session_state.edited_schedule_df = st.session_state.schedule_df.copy()
-                st.session_state.violations = validate(
-                    st.session_state.schedule_df, staff_df, dates,
-                    st.session_state.requirements,
-                    staff_df[staff_df["years_exp"] == 1]["id"].tolist(),
-                    daycare_closed_dates=st.session_state.daycare_closed,
-                    hospital_holidays=st.session_state.hospital_holidays,
-                )
-                st.rerun()
+            if st.session_state.schedule_df is not None:
+                if st.button("↩ ソルバー結果に戻す", use_container_width=True):
+                    st.session_state.edited_schedule_df = st.session_state.schedule_df.copy()
+                    st.session_state.violations = validate(
+                        st.session_state.schedule_df, staff_df, dates,
+                        st.session_state.requirements,
+                        staff_df[staff_df["years_exp"] == 1]["id"].tolist(),
+                        daycare_closed_dates=st.session_state.daycare_closed,
+                        hospital_holidays=st.session_state.hospital_holidays,
+                    )
+                    st.rerun()
         with col_xlsx:
             _xlsx = export_excel(edited, staff_df, dates,
                                  st.session_state.violations,
@@ -412,10 +423,10 @@ with tab_schedule:
                     _at = _sv["saved_at"][:16].replace("T", " ") if _sv["saved_at"] else "―"
                     st.caption(f"・{_sv['year']}/{_sv['month']:02d}期　保存日時: {_at}")
 
-        st.divider()
-        st.subheader("日別集計")
-        render_day_summary(edited, dates, st.session_state.requirements,
-                           hospital_holidays=st.session_state.hospital_holidays)
+    st.divider()
+    st.subheader("日別集計")
+    render_day_summary(edited, dates, st.session_state.requirements,
+                       hospital_holidays=st.session_state.hospital_holidays)
 
 with tab_summary:
     if st.session_state.edited_schedule_df is None:
