@@ -1273,25 +1273,231 @@ def render_request_calendar(
         )
         _render_staff_summary(selected_name, selected_sid, new_rows, jp_hols)
 
-    # 全スタッフ希望一覧
-    if not st.session_state.requests_df.empty:
-        with st.expander("全スタッフの希望一覧を表示"):
-            view = st.session_state.requests_df.copy()
-            view["氏名"] = view["staff_id"].map(sid_to_name)
-            view["日付"] = view["date"].astype(str)
-            view["希望"] = view.apply(
-                lambda r: _code_to_option(r["shift"], r["is_fixed"]), axis=1)
-            view["種別"] = view["is_fixed"].map({True: "確定", False: "希望"})
-            st.dataframe(
-                view[["氏名", "日付", "希望", "種別"]].sort_values(["氏名", "日付"]),
-                use_container_width=True, hide_index=True,
+    # ── 全スタッフ希望一覧（ピボット表） ──────────────────────────
+    st.divider()
+    st.markdown("#### 📋 全スタッフ 希望一覧")
+    _render_all_requests_table(
+        st.session_state.requests_df, staff_df, dates, sid_to_name, jp_hols
+    )
+    if st.button("全希望をクリア", key="clear_all_requests"):
+        st.session_state.requests_df = pd.DataFrame(
+            columns=["staff_id", "date", "shift", "is_fixed"])
+        save_requests(st.session_state.requests_df)
+        for d in dates:
+            wkey = f"req_cal_w_{selected_sid}_{d}"
+            if wkey in st.session_state:
+                del st.session_state[wkey]
+        st.rerun()
+
+
+def _render_all_requests_table(
+    requests_df: pd.DataFrame,
+    staff_df: pd.DataFrame,
+    dates: List[datetime.date],
+    sid_to_name: Dict,
+    jp_hols,
+) -> None:
+    """全スタッフの希望をピボット表で表示し、Excel/CSV ダウンロードを提供する。"""
+    import io
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+
+    WDAY = "月火水木金土日"
+
+    # ── ピボット構築 ──
+    # {staff_id: {date: short_label}}
+    pivot: Dict[int, Dict[datetime.date, str]] = {}
+    if not requests_df.empty:
+        for _, row in requests_df.iterrows():
+            sid  = row["staff_id"]
+            d    = row["date"]
+            opt  = _code_to_option(row["shift"], row["is_fixed"])
+            short = _FULL_TO_SHORT.get(opt, "?")
+            pivot.setdefault(sid, {})[d] = short
+
+    ordered_staff = staff_df.sort_values("order")
+    staff_ids   = ordered_staff["id"].tolist()
+    staff_names = ordered_staff["name"].tolist()
+
+    if requests_df.empty:
+        st.info("まだ希望が登録されていません。")
+        return
+
+    # ── HTML テーブル描画 ──
+    def _cell_bg(d: datetime.date) -> str:
+        if d.weekday() == 6 or d in jp_hols:
+            return "#fff0f0"
+        if d.weekday() == 5:
+            return "#f0f4ff"
+        return "#ffffff"
+
+    def _hdr_color(d: datetime.date) -> str:
+        if d.weekday() == 6 or d in jp_hols:
+            return "#c62828"
+        if d.weekday() == 5:
+            return "#1565c0"
+        return "#37474f"
+
+    th_style = (
+        "font-size:11px;font-weight:bold;text-align:center;"
+        "padding:4px 3px;border:1px solid #ddd;white-space:nowrap;"
+        "background:#37474f;color:white;"
+    )
+    name_th = (
+        "font-size:11px;font-weight:bold;text-align:left;"
+        "padding:4px 8px;border:1px solid #ddd;background:#37474f;color:white;"
+        "position:sticky;left:0;z-index:2;"
+    )
+    name_td = (
+        "font-size:12px;font-weight:bold;padding:4px 8px;"
+        "border:1px solid #ddd;white-space:nowrap;"
+        "background:#fafafa;position:sticky;left:0;z-index:1;"
+    )
+
+    html = (
+        "<div style='overflow-x:auto;max-height:480px;overflow-y:auto'>"
+        "<table style='border-collapse:collapse;width:100%;font-family:sans-serif'>"
+        "<thead><tr>"
+        f"<th style='{name_th}'>氏名</th>"
+    )
+    for d in dates:
+        wd  = WDAY[d.weekday()]
+        hc  = _hdr_color(d)
+        bg  = _cell_bg(d)
+        html += (
+            f"<th style='font-size:10px;font-weight:bold;text-align:center;"
+            f"padding:3px 2px;border:1px solid #ddd;background:{bg};color:{hc};"
+            f"min-width:34px'>{d.day}<br>{wd}</th>"
+        )
+    html += "</tr></thead><tbody>"
+
+    for sid, name in zip(staff_ids, staff_names):
+        html += f"<tr><td style='{name_td}'>{name}</td>"
+        for d in dates:
+            short = pivot.get(sid, {}).get(d, "")
+            bg    = _cell_bg(d)
+            if short and short in _BADGE_COLOR:
+                cbg, cfg = _BADGE_COLOR[short]
+                cell = (
+                    f"<span style='background:{cbg};color:{cfg};"
+                    f"border-radius:3px;padding:1px 4px;"
+                    f"font-size:11px;font-weight:bold'>{short}</span>"
+                )
+            else:
+                cell = ""
+            html += (
+                f"<td style='text-align:center;padding:3px 2px;"
+                f"border:1px solid #ddd;background:{bg};min-width:34px'>{cell}</td>"
             )
-        if st.button("全希望をクリア", key="clear_all_requests"):
-            st.session_state.requests_df = pd.DataFrame(
-                columns=["staff_id", "date", "shift", "is_fixed"])
-            save_requests(st.session_state.requests_df)
-            for d in dates:
-                wkey = f"req_cal_w_{selected_sid}_{d}"
-                if wkey in st.session_state:
-                    del st.session_state[wkey]
-            st.rerun()
+        html += "</tr>"
+
+    html += "</tbody></table></div>"
+    st.markdown(html, unsafe_allow_html=True)
+
+    # ── ダウンロード ──
+    # CSV（プレーンテキスト）
+    csv_rows = [["氏名"] + [f"{d.month}/{d.day}({WDAY[d.weekday()]})" for d in dates]]
+    for sid, name in zip(staff_ids, staff_names):
+        row_vals = [name]
+        for d in dates:
+            row_vals.append(pivot.get(sid, {}).get(d, ""))
+        csv_rows.append(row_vals)
+    csv_buf = io.StringIO()
+    import csv as _csv
+    writer = _csv.writer(csv_buf)
+    writer.writerows(csv_rows)
+    csv_bytes = csv_buf.getvalue().encode("utf-8-sig")
+
+    # Excel
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "希望一覧"
+    THIN   = Side(style="thin", color="CCCCCC")
+    BORDER = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
+    HDR_FILL = PatternFill("solid", fgColor="37474F")
+    SAT_FILL = PatternFill("solid", fgColor="E3F0FF")
+    HOL_FILL = PatternFill("solid", fgColor="FFE8E8")
+
+    # ヘッダー行
+    ws.cell(1, 1, "氏名").fill = HDR_FILL
+    ws.cell(1, 1).font = Font(color="FFFFFF", bold=True, size=9)
+    ws.cell(1, 1).alignment = Alignment(horizontal="left", vertical="center")
+    ws.cell(1, 1).border = BORDER
+    ws.column_dimensions["A"].width = 14
+
+    col_letters = []
+    for ci, d in enumerate(dates, 2):
+        wd = WDAY[d.weekday()]
+        c = ws.cell(1, ci, f"{d.month}/{d.day}\n({wd})")
+        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        c.border = BORDER
+        is_hol = d.weekday() == 6 or d in jp_hols
+        is_sat = d.weekday() == 5
+        if is_hol:
+            c.fill = PatternFill("solid", fgColor="C62828")
+            c.font = Font(color="FFFFFF", bold=True, size=8)
+        elif is_sat:
+            c.fill = PatternFill("solid", fgColor="1565C0")
+            c.font = Font(color="FFFFFF", bold=True, size=8)
+        else:
+            c.fill = HDR_FILL
+            c.font = Font(color="FFFFFF", bold=True, size=8)
+        from openpyxl.utils import get_column_letter
+        col_letters.append(get_column_letter(ci))
+        ws.column_dimensions[get_column_letter(ci)].width = 5
+    ws.row_dimensions[1].height = 28
+
+    # データ行
+    _SHIFT_COLOR_XL = {
+        "日希": "1565C0", "夜希": "E65100", "夜確": "BF360C",
+        "深確": "4E342E", "研修": "2E7D32", "委員": "F57F17",
+        "認定": "00695C", "休希": "546E7A", "有休": "6A1B9A",
+    }
+    for ri, (sid, name) in enumerate(zip(staff_ids, staff_names), 2):
+        c = ws.cell(ri, 1, name)
+        c.font = Font(size=9, bold=True)
+        c.alignment = Alignment(vertical="center")
+        c.border = BORDER
+        for ci, d in enumerate(dates, 2):
+            short = pivot.get(sid, {}).get(d, "")
+            cell = ws.cell(ri, ci, short)
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            cell.border = BORDER
+            is_hol = d.weekday() == 6 or d in jp_hols
+            is_sat = d.weekday() == 5
+            if short and short in _SHIFT_COLOR_XL:
+                cell.fill = PatternFill("solid", fgColor=_SHIFT_COLOR_XL[short])
+                cell.font = Font(color="FFFFFF", bold=True, size=9)
+            elif is_hol:
+                cell.fill = HOL_FILL
+                cell.font = Font(size=9)
+            elif is_sat:
+                cell.fill = SAT_FILL
+                cell.font = Font(size=9)
+            else:
+                cell.font = Font(size=9)
+        ws.row_dimensions[ri].height = 16
+
+    xl_buf = io.BytesIO()
+    wb.save(xl_buf)
+    xl_bytes = xl_buf.getvalue()
+
+    period_label = f"{dates[0].strftime('%Y%m%d')}-{dates[-1].strftime('%Y%m%d')}"
+    st.markdown("<div style='margin:8px 0'></div>", unsafe_allow_html=True)
+    dl1, dl2, _sp = st.columns([2, 2, 5])
+    dl1.download_button(
+        "📥 Excel ダウンロード",
+        data=xl_bytes,
+        file_name=f"希望一覧_{period_label}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        key="req_all_dl_xlsx",
+        use_container_width=True,
+    )
+    dl2.download_button(
+        "📥 CSV ダウンロード",
+        data=csv_bytes,
+        file_name=f"希望一覧_{period_label}.csv",
+        mime="text/csv",
+        key="req_all_dl_csv",
+        use_container_width=True,
+    )
