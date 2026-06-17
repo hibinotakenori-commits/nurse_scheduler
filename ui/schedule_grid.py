@@ -99,27 +99,31 @@ def render_grid(
 <style>
 /* セル編集ドロップダウンのスタイル */
 .ag-popup-editor {
-    box-shadow: 0 4px 16px rgba(0,0,0,0.25) !important;
-    border: 1px solid var(--primary-color) !important;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.5) !important;
+    border: 2px solid #4a90d9 !important;
     border-radius: 6px !important;
     overflow: hidden !important;
 }
 .ag-rich-select,
-.ag-rich-select-list {
-    background-color: var(--secondary-background-color) !important;
+.ag-rich-select-list,
+.ag-rich-select-virtual-list-viewport,
+.ag-rich-select-virtual-list-item {
+    background-color: #2b3a55 !important;
 }
 .ag-rich-select-row {
-    color: var(--text-color) !important;
-    padding: 4px 8px !important;
+    background-color: #2b3a55 !important;
+    color: #e8edf5 !important;
+    font-size: 13px !important;
+    min-height: 28px !important;
 }
 .ag-rich-select-row:hover {
-    background-color: var(--primary-color) !important;
+    background-color: #4a90d9 !important;
     color: #ffffff !important;
 }
 .ag-rich-select-row.ag-rich-select-row-selected {
-    background-color: var(--primary-color) !important;
+    background-color: #3a6fad !important;
     color: #ffffff !important;
-    opacity: 0.85;
+    font-weight: 600 !important;
 }
 </style>
 """, unsafe_allow_html=True)
