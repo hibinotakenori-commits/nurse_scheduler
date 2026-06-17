@@ -1304,14 +1304,14 @@ def _render_all_requests_table(
 
     WDAY = "月火水木金土日"
 
-    # ── ピボット構築 ──
-    # {staff_id: {date: short_label}}
+    # ── ピボット構築（同一日付に複数レコードがある場合は確定優先・後勝ち） ──
     pivot: Dict[int, Dict[datetime.date, str]] = {}
     if not requests_df.empty:
-        for _, row in requests_df.iterrows():
-            sid  = row["staff_id"]
-            d    = row["date"]
-            opt  = _code_to_option(row["shift"], row["is_fixed"])
+        # is_fixed=False → True の順で処理し、確定が最終的に残るようにする
+        for _, row in requests_df.sort_values("is_fixed").iterrows():
+            sid   = row["staff_id"]
+            d     = row["date"]
+            opt   = _code_to_option(row["shift"], row["is_fixed"])
             short = _FULL_TO_SHORT.get(opt, "?")
             pivot.setdefault(sid, {})[d] = short
 
@@ -1367,7 +1367,7 @@ def _render_all_requests_table(
         html += (
             f"<th style='font-size:10px;font-weight:bold;text-align:center;"
             f"padding:3px 2px;border:1px solid #ddd;background:{bg};color:{hc};"
-            f"min-width:34px'>{d.day}<br>{wd}</th>"
+            f"min-width:38px;white-space:nowrap'>{d.day}<br>{wd}</th>"
         )
     html += "</tr></thead><tbody>"
 
@@ -1380,14 +1380,15 @@ def _render_all_requests_table(
                 cbg, cfg = _BADGE_COLOR[short]
                 cell = (
                     f"<span style='background:{cbg};color:{cfg};"
-                    f"border-radius:3px;padding:1px 4px;"
-                    f"font-size:11px;font-weight:bold'>{short}</span>"
+                    f"border-radius:3px;padding:1px 3px;"
+                    f"font-size:10px;font-weight:bold;"
+                    f"white-space:nowrap;display:inline-block'>{short}</span>"
                 )
             else:
                 cell = ""
             html += (
-                f"<td style='text-align:center;padding:3px 2px;"
-                f"border:1px solid #ddd;background:{bg};min-width:34px'>{cell}</td>"
+                f"<td style='text-align:center;padding:2px 1px;"
+                f"border:1px solid #ddd;background:{bg};min-width:38px'>{cell}</td>"
             )
         html += "</tr>"
 
