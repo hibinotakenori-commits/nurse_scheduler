@@ -38,6 +38,15 @@ st.set_page_config(
     layout="wide",
 )
 
+# ── スタッフ希望入力モード（?page=staff でアクセス時） ──────
+if st.query_params.get("page") == "staff":
+    import importlib.util as _ilu
+    _staff_path = Path(__file__).parent / "pages" / "staff.py"
+    _spec = _ilu.spec_from_file_location("_staff_page", _staff_path)
+    _mod  = _ilu.module_from_spec(_spec)
+    _spec.loader.exec_module(_mod)
+    st.stop()
+
 # ── セッションステートの初期化 ──────────────────────────────
 
 def init_state():
@@ -513,7 +522,7 @@ with tab_requests:
     import io as _io
     import qrcode
 
-    _STAFF_URL = "https://nursescheduler-mmqzcgez8yjvxs8qg5reou.streamlit.app/staff"
+    _STAFF_URL = "https://nursescheduler-mmqzcgez8yjvxs8qg5reou.streamlit.app/?page=staff"
 
     with st.expander("📱 スタッフ向け希望入力QRコード", expanded=True):
         _qr_col, _info_col = st.columns([1, 2])

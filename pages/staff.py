@@ -21,12 +21,8 @@ from ui.request_calendar import (
     SHORT_OPTIONS,
 )
 
-st.set_page_config(
-    page_title="勤務希望入力 - 3A病棟",
-    page_icon="📅",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
+# set_page_config は app.py 側で呼ばれるため省略
+# （?page=staff 経由で実行されるモジュールとして使用）
 
 # サイドバー・ページナビゲーションを完全非表示
 st.markdown("""
