@@ -510,37 +510,25 @@ with tab_summary:
 
 with tab_requests:
     # ── スタッフ用QRコード ──
-    import socket, io as _io
+    import io as _io
     import qrcode
-    def _local_ip() -> str:
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            s.connect(("8.8.8.8", 80))
-            ip = s.getsockname()[0]
-            s.close()
-            return ip
-        except Exception:
-            return "127.0.0.1"
-    _ip = _local_ip()
-    _staff_url = f"http://{_ip}:8502"
+
+    _STAFF_URL = "https://nursescheduler-mmqzcgez8yjvxs8qg5reou.streamlit.app/staff"
 
     with st.expander("📱 スタッフ向け希望入力QRコード", expanded=True):
         _qr_col, _info_col = st.columns([1, 2])
         with _qr_col:
-            _qr = qrcode.make(_staff_url)
+            _qr = qrcode.make(_STAFF_URL)
             _buf = _io.BytesIO()
             _qr.save(_buf, format="PNG")
             st.image(_buf.getvalue(), width=180)
         with _info_col:
-            st.markdown(f"**スタッフ向けURL**")
-            st.code(_staff_url)
+            st.markdown("**スタッフ向けURL**")
+            st.code(_STAFF_URL)
             st.caption(
                 "スタッフはスマホのカメラでQRコードを読み取るか、"
                 "上のURLをブラウザで開いて希望を入力できます。\n\n"
-                "**起動方法**（ターミナルで）:\n"
-                "```\nbash start.sh\n```\n"
-                "または\n"
-                "```\nstreamlit run staff_app.py --server.port 8502 --server.address 0.0.0.0\n```"
+                "設定・管理画面は表示されません。"
             )
     st.divider()
     render_request_calendar(staff_df, dates)
