@@ -513,7 +513,15 @@ with tab_schedule:
 
 with tab_summary:
     if st.session_state.edited_schedule_df is None:
-        st.info("勤務表を生成してから確認してください。")
+        # 空の集計表（スタッフ名のみ、数値は空欄）
+        _empty_summary = pd.DataFrame(
+            [{"氏名": row["name"], "日": "", "/イ": "", "研修": "",
+              "オ2": "", "ヤ1": "", "ヤ2": "", "夜勤回数": "",
+              "休": "", "有": "", "勤務時間(h)": "", "目標時間(h)": row["target_hours"], "差異(h)": ""}
+             for _, row in staff_df.sort_values("order").iterrows()]
+        )
+        st.dataframe(_empty_summary, use_container_width=True,
+                     height=min(80 + 35 * len(_empty_summary), 900))
     else:
         render_summary(st.session_state.edited_schedule_df, staff_df, dates)
 
