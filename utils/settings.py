@@ -182,16 +182,32 @@ def save_settings(
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
-def staff_df_from_settings(data: Dict[str, Any]) -> pd.DataFrame:
+def _empty_staff_df() -> pd.DataFrame:
+    """スタッフ未登録の空 DataFrame を返す。"""
+    import pandas as pd
+    cols = ["id", "name", "years_exp", "night_ok", "day_leader_ok", "night_leader_ok",
+            "night_count_min", "night_count_max", "target_hours", "daycare_type",
+            "nightcare_required", "nightcare_no_night", "gakudo", "gakudo_required",
+            "order", "active"]
+    return pd.DataFrame(columns=cols).astype({
+        "id": int, "years_exp": int, "night_count_min": int, "night_count_max": int,
+        "order": int, "target_hours": float,
+        "night_ok": bool, "day_leader_ok": bool, "night_leader_ok": bool,
+        "nightcare_required": bool, "nightcare_no_night": bool,
+        "gakudo": bool, "gakudo_required": bool, "active": bool,
+    })
+
+
+def staff_df_from_settings(data: Dict[str, Any], ward: str = "3A") -> pd.DataFrame:
     """
     settings データから staff DataFrame を復元する。
-    staff が None または空の場合は staff_data.py のデフォルトを返す。
+    staff が None または空の場合、3A はデフォルトスタッフを返す。それ以外は空 DataFrame。
     """
     from utils.staff_data import load_staff
 
     staff_list: Optional[List[dict]] = data.get("staff")
     if not staff_list:
-        return load_staff()
+        return load_staff() if ward == "3A" else _empty_staff_df()
 
     df = pd.DataFrame(staff_list)
 

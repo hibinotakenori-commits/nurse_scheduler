@@ -72,7 +72,7 @@ def init_state():
     if "_settings_loaded" not in st.session_state:
         _s = load_settings(ward=st.session_state.ward)
         st.session_state._settings_loaded = True
-        st.session_state.staff_df      = staff_df_from_settings(_s)
+        st.session_state.staff_df      = staff_df_from_settings(_s, ward=st.session_state.ward)
         st.session_state.requirements  = _s["requirements"]
         st.session_state.soft_weights  = _s.get("soft_weights", dict(DEFAULT_SOFT_WEIGHTS))
         st.session_state.hospital_holidays = _s["hospital_holidays"]
