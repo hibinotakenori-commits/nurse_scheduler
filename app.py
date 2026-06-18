@@ -346,9 +346,9 @@ with tab_schedule:
     _solver_done = st.session_state.edited_schedule_df is not None
 
     if not _solver_done:
-        # ソルバー未実行：全員「休」の空の票を表示
+        # ソルバー未実行：空欄の票を表示
         sdf = pd.DataFrame(
-            "O",
+            "",
             index=staff_df["id"].tolist(),
             columns=dates,
         )

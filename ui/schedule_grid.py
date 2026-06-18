@@ -9,8 +9,9 @@ from utils.time_utils import is_holiday, is_weekday, SHIFT_LABEL, LABEL_SHIFT, S
 
 # 表示ラベル一覧（ドロップダウン用）― 研修・/イ も手動編集で選べるように追加
 DISPLAY_OPTIONS = (
-    [SHIFT_LABEL[s] for s in SHIFTS]                        # 日, オ2, ヤ1, ヤ2, 休, 有
-    + [SHIFT_LABEL["T"], SHIFT_LABEL["I"], SHIFT_LABEL["C"]]  # 研修, /イ, 認
+    [""]                                                      # 空欄（作成前の初期状態）
+    + [SHIFT_LABEL[s] for s in SHIFTS]                       # 日, オ2, ヤ1, ヤ2, 休, 有
+    + [SHIFT_LABEL["T"], SHIFT_LABEL["I"], SHIFT_LABEL["C"]] # 研修, /イ, 認
 )
 
 LABEL_BG = {
