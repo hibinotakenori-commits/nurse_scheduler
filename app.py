@@ -662,7 +662,7 @@ with tab_staff:
                 return True
         return False
 
-    if _summary_changed(_edited_summary, _summary_df):
+    if len(_summary_df) > 0 and _summary_changed(_edited_summary, _summary_df):
         for _, _erow in _edited_summary.iterrows():
             _mask = st.session_state.staff_df["name"] == _erow["氏名"]
             st.session_state.staff_df.loc[_mask, "active"]          = bool(_erow["有効"])
