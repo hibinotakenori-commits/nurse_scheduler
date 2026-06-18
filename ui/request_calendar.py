@@ -1036,6 +1036,10 @@ def render_request_calendar(
     staff_names = staff_df["name"].tolist()
     existing: pd.DataFrame = st.session_state.requests_df.copy()
 
+    if not staff_names:
+        st.info("スタッフが登録されていません。「スタッフ」タブからスタッフを追加してください。")
+        return
+
     # ────────────────────────────────
     # テキスト一括入力セクション
     # ────────────────────────────────

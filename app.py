@@ -696,169 +696,44 @@ with tab_staff:
 
     st.divider()
 
-    # ── ② 個人詳細：設定 ＋ シフト希望一覧 ─────────────────────
-    st.subheader("個人詳細")
-    _staff_names = st.session_state.staff_df.sort_values("order")["name"].tolist()
-    _sel_name = st.selectbox("スタッフを選択", _staff_names, key="staff_detail_select")
-    _sel_row_mask = st.session_state.staff_df["name"] == _sel_name
-    _sel_idx = st.session_state.staff_df.index[_sel_row_mask][0]
-    _sel = st.session_state.staff_df.loc[_sel_idx]
-
-    col_settings, col_requests = st.columns([1, 1], gap="large")
-
-    with col_settings:
-        st.markdown("**設定**")
-        with st.form(key=f"staff_form_{_sel_name}"):
-            _f_name = st.text_input("氏名", value=str(_sel["name"]))
-            _f_years = st.number_input("経験年数", min_value=0, step=1,
-                                       value=int(_sel["years_exp"]))
-            _f_night_ok = st.checkbox("夜勤可", value=bool(_sel.get("night_ok", False)))
-            _f_day_l    = st.checkbox("日勤リーダー可", value=bool(_sel.get("day_leader_ok", False)))
-            _f_night_l  = st.checkbox("夜勤リーダー可", value=bool(_sel.get("night_leader_ok", False)))
-            _col_min, _col_max = st.columns(2)
-            with _col_min:
-                _f_nc_min = st.number_input("夜勤下限", min_value=0, step=1,
-                                             value=int(_sel.get("night_count_min", 0)))
-            with _col_max:
-                _f_nc_max = st.number_input("夜勤上限", min_value=0, step=1,
-                                             value=int(_sel.get("night_count_max", 0)))
-            _f_hours = st.number_input("目標時間(h)", min_value=0.0, step=0.5,
-                                       value=float(_sel.get("target_hours", 170.0)))
-            _dc_idx = DAYCARE_TYPE_OPTIONS.index(
-                str(_sel.get("daycare_type", "none"))
-                if str(_sel.get("daycare_type", "none")) in DAYCARE_TYPE_OPTIONS else "none"
-            )
-            _f_dc = st.selectbox(
-                "保育園利用",
-                options=DAYCARE_TYPE_OPTIONS,
-                format_func=lambda v: DAYCARE_TYPE_LABELS.get(v, v),
-                index=_dc_idx,
-            )
-            # 夜間保育フラグ
-            _nc_req_current = bool(_sel.get("nightcare_required", False))
-            _f_nc_req = st.checkbox(
-                "夜間保育があるときのみ夜勤可",
-                value=_nc_req_current,
-                help="ON：夜間保育受け入れ日以外は夜勤不可。OFF：家族対応等で夜間保育なしでも夜勤可。",
-            )
-            _f_nc_no_night = st.checkbox(
-                "夜間保育があるときに夜勤不可",
-                value=bool(_sel.get("nightcare_no_night", False)),
-                help="ON：夜間保育受け入れ日は夜勤不可（保育担当等で夜勤に入れない場合）。",
-            )
-
-            st.markdown("---")
-            # 夜間学童
-            _f_gakudo = st.checkbox(
-                "夜間学童を利用",
-                value=bool(_sel.get("gakudo", False)),
-                help="夜間学童を利用しているスタッフにチェックしてください。",
-            )
-            _f_gakudo_req = st.checkbox(
-                "夜間学童があるときのみ夜勤可",
-                value=bool(_sel.get("gakudo_required", False)),
-                help="ON：夜間学童受け入れ日以外は夜勤不可。OFF：家族対応等で夜間学童なしでも夜勤可。",
-            )
-
-            if st.form_submit_button("💾 保存", type="primary"):
-                st.session_state.staff_df.loc[_sel_idx, "name"]               = _f_name
-                st.session_state.staff_df.loc[_sel_idx, "years_exp"]          = _f_years
-                st.session_state.staff_df.loc[_sel_idx, "night_ok"]           = _f_night_ok
-                st.session_state.staff_df.loc[_sel_idx, "day_leader_ok"]      = _f_day_l
-                st.session_state.staff_df.loc[_sel_idx, "night_leader_ok"]    = _f_night_l
-                st.session_state.staff_df.loc[_sel_idx, "night_count_min"]    = _f_nc_min
-                st.session_state.staff_df.loc[_sel_idx, "night_count_max"]    = _f_nc_max
-                st.session_state.staff_df.loc[_sel_idx, "target_hours"]       = _f_hours
-                st.session_state.staff_df.loc[_sel_idx, "daycare_type"]       = _f_dc
-                st.session_state.staff_df.loc[_sel_idx, "nightcare_required"] = _f_nc_req
-                st.session_state.staff_df.loc[_sel_idx, "nightcare_no_night"] = _f_nc_no_night
-                st.session_state.staff_df.loc[_sel_idx, "gakudo"]             = _f_gakudo
-                st.session_state.staff_df.loc[_sel_idx, "gakudo_required"]    = _f_gakudo_req
-                save_settings(
-                    requirements=st.session_state.requirements,
-                    soft_weights=st.session_state.soft_weights,
-                    hospital_holidays=st.session_state.hospital_holidays,
-                    daycare_closed=st.session_state.daycare_closed,
-                    nightcare_open=st.session_state.nightcare_open,
-                    gakudo_open=st.session_state.gakudo_open,
-                    system_constraint_priorities=st.session_state.system_constraint_priorities,
-                    user_constraints=st.session_state.user_constraints,
-                    staff_df=st.session_state.staff_df,
-                    target_year=st.session_state.get("target_year"),
-                    target_month=st.session_state.get("target_month"),
-                    ward=st.session_state.ward,
-                )
-                st.success("保存しました。")
-                st.rerun()
-
-        # ── スタッフ追加 ──
-        st.divider()
-        with st.expander("➕ スタッフを追加"):
-            with st.form("add_staff_form"):
-                _ac1, _ac2 = st.columns(2)
-                _new_name  = _ac1.text_input("氏名")
-                _new_years = _ac2.number_input("経験年数", min_value=0, step=1, value=1)
-                _bc1, _bc2, _bc3 = st.columns(3)
-                _new_night_ok = _bc1.checkbox("夜勤可", value=True)
-                _new_day_l    = _bc2.checkbox("日勤リーダー可", value=False)
-                _new_night_l  = _bc3.checkbox("夜勤リーダー可", value=False)
-                _cc1, _cc2, _cc3 = st.columns(3)
-                _new_nc_min = _cc1.number_input("夜勤下限", min_value=0, step=1, value=3)
-                _new_nc_max = _cc2.number_input("夜勤上限", min_value=0, step=1, value=6)
-                _new_hours  = _cc3.number_input("目標時間(h)", min_value=0.0, step=0.5, value=170.0)
-                if st.form_submit_button("✅ 追加", type="primary"):
-                    if not _new_name.strip():
-                        st.error("氏名を入力してください。")
-                    elif _new_name.strip() in st.session_state.staff_df["name"].tolist():
-                        st.error("同じ氏名のスタッフが既に登録されています。")
-                    else:
-                        _new_id    = int(st.session_state.staff_df["id"].max()) + 1
-                        _new_order = int(st.session_state.staff_df["order"].max()) + 1
-                        _new_row = pd.DataFrame([{
-                            "id": _new_id, "name": _new_name.strip(),
-                            "years_exp": _new_years, "night_ok": _new_night_ok,
-                            "day_leader_ok": _new_day_l, "night_leader_ok": _new_night_l,
-                            "night_count_min": _new_nc_min, "night_count_max": _new_nc_max,
-                            "target_hours": float(_new_hours),
-                            "daycare_type": "none", "nightcare_required": False,
-                            "nightcare_no_night": False,
-                            "gakudo": False, "gakudo_required": False,
-                            "order": _new_order, "active": True,
-                        }])
-                        st.session_state.staff_df = pd.concat(
-                            [st.session_state.staff_df, _new_row], ignore_index=True
-                        )
-                        save_settings(
-                            requirements=st.session_state.requirements,
-                            soft_weights=st.session_state.soft_weights,
-                            hospital_holidays=st.session_state.hospital_holidays,
-                            daycare_closed=st.session_state.daycare_closed,
-                            nightcare_open=st.session_state.nightcare_open,
-                            gakudo_open=st.session_state.gakudo_open,
-                            system_constraint_priorities=st.session_state.system_constraint_priorities,
-                            user_constraints=st.session_state.user_constraints,
-                            staff_df=st.session_state.staff_df,
-                            target_year=st.session_state.get("target_year"),
-                            target_month=st.session_state.get("target_month"),
-                            ward=st.session_state.ward,
-                        )
-                        st.success(f"「{_new_name.strip()}」を追加しました。")
-                        st.rerun()
-
-        # ── 完全削除 ──
-        st.divider()
-        with st.expander("⚠️ 完全削除（取り消し不可）"):
-            st.warning(f"「{_sel_name}」をスタッフ一覧から完全に削除します。この操作は元に戻せません。一時的に外す場合は「スタッフ一覧」の「有効」チェックを外して休止してください。")
-            _confirm_del = st.checkbox("削除することを確認しました", key=f"confirm_del_{_sel_name}")
-            if _confirm_del:
-                if st.button("🗑️ 完全削除を実行", type="primary", key=f"exec_del_{_sel_name}"):
-                    _del_id = int(_sel["id"])
-                    st.session_state.staff_df = st.session_state.staff_df[
-                        st.session_state.staff_df["id"] != _del_id
-                    ].reset_index(drop=True)
-                    st.session_state.requests_df = st.session_state.requests_df[
-                        st.session_state.requests_df["staff_id"] != _del_id
-                    ].reset_index(drop=True)
+    # ── ② スタッフ追加（スタッフ数によらず常に表示） ─────────────────
+    st.divider()
+    with st.expander("➕ スタッフを追加", expanded=not bool(_staff_names)):
+        with st.form("add_staff_form"):
+            _ac1, _ac2 = st.columns(2)
+            _new_name  = _ac1.text_input("氏名")
+            _new_years = _ac2.number_input("経験年数", min_value=0, step=1, value=1)
+            _bc1, _bc2, _bc3 = st.columns(3)
+            _new_night_ok = _bc1.checkbox("夜勤可", value=True)
+            _new_day_l    = _bc2.checkbox("日勤リーダー可", value=False)
+            _new_night_l  = _bc3.checkbox("夜勤リーダー可", value=False)
+            _cc1, _cc2, _cc3 = st.columns(3)
+            _new_nc_min = _cc1.number_input("夜勤下限", min_value=0, step=1, value=3)
+            _new_nc_max = _cc2.number_input("夜勤上限", min_value=0, step=1, value=6)
+            _new_hours  = _cc3.number_input("目標時間(h)", min_value=0.0, step=0.5, value=170.0)
+            if st.form_submit_button("✅ 追加", type="primary"):
+                if not _new_name.strip():
+                    st.error("氏名を入力してください。")
+                elif _new_name.strip() in st.session_state.staff_df["name"].tolist():
+                    st.error("同じ氏名のスタッフが既に登録されています。")
+                else:
+                    _df_len = len(st.session_state.staff_df)
+                    _new_id    = int(st.session_state.staff_df["id"].max()) + 1 if _df_len > 0 else 1
+                    _new_order = int(st.session_state.staff_df["order"].max()) + 1 if _df_len > 0 else 1
+                    _new_row = pd.DataFrame([{
+                        "id": _new_id, "name": _new_name.strip(),
+                        "years_exp": _new_years, "night_ok": _new_night_ok,
+                        "day_leader_ok": _new_day_l, "night_leader_ok": _new_night_l,
+                        "night_count_min": _new_nc_min, "night_count_max": _new_nc_max,
+                        "target_hours": float(_new_hours),
+                        "daycare_type": "none", "nightcare_required": False,
+                        "nightcare_no_night": False,
+                        "gakudo": False, "gakudo_required": False,
+                        "order": _new_order, "active": True,
+                    }])
+                    st.session_state.staff_df = pd.concat(
+                        [st.session_state.staff_df, _new_row], ignore_index=True
+                    )
                     save_settings(
                         requirements=st.session_state.requirements,
                         soft_weights=st.session_state.soft_weights,
@@ -873,39 +748,161 @@ with tab_staff:
                         target_month=st.session_state.get("target_month"),
                         ward=st.session_state.ward,
                     )
-                    save_requests(st.session_state.requests_df, ward=st.session_state.ward)
-                    st.success(f"「{_sel_name}」を削除しました。")
+                    st.success(f"「{_new_name.strip()}」を追加しました。")
                     st.rerun()
 
-    with col_requests:
-        st.markdown("**シフト希望一覧（今月）**")
-        _sel_id = int(_sel["id"])
-        _req_df = st.session_state.requests_df
-        if len(_req_df) > 0 and "staff_id" in _req_df.columns:
-            _staff_reqs = _req_df[_req_df["staff_id"] == _sel_id].copy()
-        else:
-            _staff_reqs = pd.DataFrame(columns=["staff_id", "date", "shift", "is_fixed"])
+    # ── ③ 個人詳細（スタッフが存在する場合のみ） ───────────────────
+    if _staff_names:
+        st.subheader("個人詳細")
+        _sel_name = st.selectbox("スタッフを選択", _staff_names, key="staff_detail_select")
+        _sel_row_mask = st.session_state.staff_df["name"] == _sel_name
+        _sel_idx = st.session_state.staff_df.index[_sel_row_mask][0]
+        _sel = st.session_state.staff_df.loc[_sel_idx]
 
-        if len(_staff_reqs) > 0:
-            from utils.time_utils import SHIFT_LABEL
-            _staff_reqs = _staff_reqs.sort_values("date")
-            _req_rows = []
-            for _, _rr in _staff_reqs.iterrows():
-                _wname = "月火水木金土日"[_rr["date"].weekday()]
-                _shift_label = SHIFT_LABEL.get(_rr["shift"], _rr["shift"])
-                _kind = "確定" if _rr.get("is_fixed", False) else "希望"
-                _req_rows.append({
-                    "日付":   f"{_rr['date'].month}/{_rr['date'].day}（{_wname}）",
-                    "シフト": _shift_label,
-                    "区分":   _kind,
-                })
-            st.dataframe(
-                pd.DataFrame(_req_rows).set_index("日付"),
-                use_container_width=True,
-                height=min(60 + 35 * len(_req_rows), 600),
-            )
-        else:
-            st.info("希望が登録されていません。")
+        col_settings, col_requests = st.columns([1, 1], gap="large")
+
+        with col_settings:
+            st.markdown("**設定**")
+            with st.form(key=f"staff_form_{_sel_name}"):
+                _f_name = st.text_input("氏名", value=str(_sel["name"]))
+                _f_years = st.number_input("経験年数", min_value=0, step=1,
+                                           value=int(_sel["years_exp"]))
+                _f_night_ok = st.checkbox("夜勤可", value=bool(_sel.get("night_ok", False)))
+                _f_day_l    = st.checkbox("日勤リーダー可", value=bool(_sel.get("day_leader_ok", False)))
+                _f_night_l  = st.checkbox("夜勤リーダー可", value=bool(_sel.get("night_leader_ok", False)))
+                _col_min, _col_max = st.columns(2)
+                with _col_min:
+                    _f_nc_min = st.number_input("夜勤下限", min_value=0, step=1,
+                                                 value=int(_sel.get("night_count_min", 0)))
+                with _col_max:
+                    _f_nc_max = st.number_input("夜勤上限", min_value=0, step=1,
+                                                 value=int(_sel.get("night_count_max", 0)))
+                _f_hours = st.number_input("目標時間(h)", min_value=0.0, step=0.5,
+                                           value=float(_sel.get("target_hours", 170.0)))
+                _dc_idx = DAYCARE_TYPE_OPTIONS.index(
+                    str(_sel.get("daycare_type", "none"))
+                    if str(_sel.get("daycare_type", "none")) in DAYCARE_TYPE_OPTIONS else "none"
+                )
+                _f_dc = st.selectbox(
+                    "保育園利用",
+                    options=DAYCARE_TYPE_OPTIONS,
+                    format_func=lambda v: DAYCARE_TYPE_LABELS.get(v, v),
+                    index=_dc_idx,
+                )
+                _nc_req_current = bool(_sel.get("nightcare_required", False))
+                _f_nc_req = st.checkbox(
+                    "夜間保育があるときのみ夜勤可",
+                    value=_nc_req_current,
+                    help="ON：夜間保育受け入れ日以外は夜勤不可。OFF：家族対応等で夜間保育なしでも夜勤可。",
+                )
+                _f_nc_no_night = st.checkbox(
+                    "夜間保育があるときに夜勤不可",
+                    value=bool(_sel.get("nightcare_no_night", False)),
+                    help="ON：夜間保育受け入れ日は夜勤不可（保育担当等で夜勤に入れない場合）。",
+                )
+                st.markdown("---")
+                _f_gakudo = st.checkbox(
+                    "夜間学童を利用",
+                    value=bool(_sel.get("gakudo", False)),
+                    help="夜間学童を利用しているスタッフにチェックしてください。",
+                )
+                _f_gakudo_req = st.checkbox(
+                    "夜間学童があるときのみ夜勤可",
+                    value=bool(_sel.get("gakudo_required", False)),
+                    help="ON：夜間学童受け入れ日以外は夜勤不可。OFF：家族対応等で夜間学童なしでも夜勤可。",
+                )
+                if st.form_submit_button("💾 保存", type="primary"):
+                    st.session_state.staff_df.loc[_sel_idx, "name"]               = _f_name
+                    st.session_state.staff_df.loc[_sel_idx, "years_exp"]          = _f_years
+                    st.session_state.staff_df.loc[_sel_idx, "night_ok"]           = _f_night_ok
+                    st.session_state.staff_df.loc[_sel_idx, "day_leader_ok"]      = _f_day_l
+                    st.session_state.staff_df.loc[_sel_idx, "night_leader_ok"]    = _f_night_l
+                    st.session_state.staff_df.loc[_sel_idx, "night_count_min"]    = _f_nc_min
+                    st.session_state.staff_df.loc[_sel_idx, "night_count_max"]    = _f_nc_max
+                    st.session_state.staff_df.loc[_sel_idx, "target_hours"]       = _f_hours
+                    st.session_state.staff_df.loc[_sel_idx, "daycare_type"]       = _f_dc
+                    st.session_state.staff_df.loc[_sel_idx, "nightcare_required"] = _f_nc_req
+                    st.session_state.staff_df.loc[_sel_idx, "nightcare_no_night"] = _f_nc_no_night
+                    st.session_state.staff_df.loc[_sel_idx, "gakudo"]             = _f_gakudo
+                    st.session_state.staff_df.loc[_sel_idx, "gakudo_required"]    = _f_gakudo_req
+                    save_settings(
+                        requirements=st.session_state.requirements,
+                        soft_weights=st.session_state.soft_weights,
+                        hospital_holidays=st.session_state.hospital_holidays,
+                        daycare_closed=st.session_state.daycare_closed,
+                        nightcare_open=st.session_state.nightcare_open,
+                        gakudo_open=st.session_state.gakudo_open,
+                        system_constraint_priorities=st.session_state.system_constraint_priorities,
+                        user_constraints=st.session_state.user_constraints,
+                        staff_df=st.session_state.staff_df,
+                        target_year=st.session_state.get("target_year"),
+                        target_month=st.session_state.get("target_month"),
+                        ward=st.session_state.ward,
+                    )
+                    st.success("保存しました。")
+                    st.rerun()
+
+            # ── 完全削除 ──
+            st.divider()
+            with st.expander("⚠️ 完全削除（取り消し不可）"):
+                st.warning(f"「{_sel_name}」をスタッフ一覧から完全に削除します。この操作は元に戻せません。一時的に外す場合は「スタッフ一覧」の「有効」チェックを外して休止してください。")
+                _confirm_del = st.checkbox("削除することを確認しました", key=f"confirm_del_{_sel_name}")
+                if _confirm_del:
+                    if st.button("🗑️ 完全削除を実行", type="primary", key=f"exec_del_{_sel_name}"):
+                        _del_id = int(_sel["id"])
+                        st.session_state.staff_df = st.session_state.staff_df[
+                            st.session_state.staff_df["id"] != _del_id
+                        ].reset_index(drop=True)
+                        st.session_state.requests_df = st.session_state.requests_df[
+                            st.session_state.requests_df["staff_id"] != _del_id
+                        ].reset_index(drop=True)
+                        save_settings(
+                            requirements=st.session_state.requirements,
+                            soft_weights=st.session_state.soft_weights,
+                            hospital_holidays=st.session_state.hospital_holidays,
+                            daycare_closed=st.session_state.daycare_closed,
+                            nightcare_open=st.session_state.nightcare_open,
+                            gakudo_open=st.session_state.gakudo_open,
+                            system_constraint_priorities=st.session_state.system_constraint_priorities,
+                            user_constraints=st.session_state.user_constraints,
+                            staff_df=st.session_state.staff_df,
+                            target_year=st.session_state.get("target_year"),
+                            target_month=st.session_state.get("target_month"),
+                            ward=st.session_state.ward,
+                        )
+                        save_requests(st.session_state.requests_df, ward=st.session_state.ward)
+                        st.success(f"「{_sel_name}」を削除しました。")
+                        st.rerun()
+
+        with col_requests:
+            st.markdown("**シフト希望一覧（今月）**")
+            _sel_id = int(_sel["id"])
+            _req_df = st.session_state.requests_df
+            if len(_req_df) > 0 and "staff_id" in _req_df.columns:
+                _staff_reqs = _req_df[_req_df["staff_id"] == _sel_id].copy()
+            else:
+                _staff_reqs = pd.DataFrame(columns=["staff_id", "date", "shift", "is_fixed"])
+
+            if len(_staff_reqs) > 0:
+                from utils.time_utils import SHIFT_LABEL
+                _staff_reqs = _staff_reqs.sort_values("date")
+                _req_rows = []
+                for _, _rr in _staff_reqs.iterrows():
+                    _wname = "月火水木金土日"[_rr["date"].weekday()]
+                    _shift_label = SHIFT_LABEL.get(_rr["shift"], _rr["shift"])
+                    _kind = "確定" if _rr.get("is_fixed", False) else "希望"
+                    _req_rows.append({
+                        "日付":   f"{_rr['date'].month}/{_rr['date'].day}（{_wname}）",
+                        "シフト": _shift_label,
+                        "区分":   _kind,
+                    })
+                st.dataframe(
+                    pd.DataFrame(_req_rows).set_index("日付"),
+                    use_container_width=True,
+                    height=min(60 + 35 * len(_req_rows), 600),
+                )
+            else:
+                st.info("希望が登録されていません。")
 
 with tab_common:
     # ══════════════════════════════════════════════════════
