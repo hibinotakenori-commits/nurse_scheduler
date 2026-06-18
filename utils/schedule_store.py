@@ -6,13 +6,17 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 
-SCHEDULES_DIR = Path(__file__).parent.parent / "saved_schedules"
+
+def _schedules_dir(ward: str = "3A") -> Path:
+    """病棟別 saved_schedules ディレクトリを返す（なければ作成）。"""
+    d = Path(__file__).parent.parent / "saved_schedules" / ward
+    d.mkdir(parents=True, exist_ok=True)
+    return d
 
 
-def save_schedule(schedule_df: pd.DataFrame, year: int, month: int) -> Path:
-    """勤務表を saved_schedules/YYYYMM.json に保存する。"""
-    SCHEDULES_DIR.mkdir(exist_ok=True)
-    path = SCHEDULES_DIR / f"{year}{month:02d}.json"
+def save_schedule(schedule_df: pd.DataFrame, year: int, month: int, ward: str = "3A") -> Path:
+    """勤務表を saved_schedules/{ward}/YYYYMM.json に保存する。"""
+    path = _schedules_dir(ward) / f"{year}{month:02d}.json"
 
     schedule_data: Dict[str, Dict[str, str]] = {}
     for staff_id in schedule_df.index:
@@ -34,9 +38,9 @@ def save_schedule(schedule_df: pd.DataFrame, year: int, month: int) -> Path:
     return path
 
 
-def load_schedule(year: int, month: int) -> Optional[pd.DataFrame]:
+def load_schedule(year: int, month: int, ward: str = "3A") -> Optional[pd.DataFrame]:
     """保存済み勤務表を DataFrame で返す。なければ None。"""
-    path = SCHEDULES_DIR / f"{year}{month:02d}.json"
+    path = _schedules_dir(ward) / f"{year}{month:02d}.json"
     if not path.exists():
         return None
     try:
@@ -65,12 +69,13 @@ def load_schedule(year: int, month: int) -> Optional[pd.DataFrame]:
         return None
 
 
-def list_saved_schedules() -> List[Dict]:
+def list_saved_schedules(ward: str = "3A") -> List[Dict]:
     """保存済み勤務表の一覧を返す（新しい順）。"""
-    if not SCHEDULES_DIR.exists():
+    sdir = _schedules_dir(ward)
+    if not sdir.exists():
         return []
     result = []
-    for path in sorted(SCHEDULES_DIR.glob("*.json"), reverse=True):
+    for path in sorted(sdir.glob("*.json"), reverse=True):
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -88,6 +93,7 @@ def list_saved_schedules() -> List[Dict]:
 def get_prev_boundary(
     year: int,
     month: int,
+    ward: str = "3A",
     n_days: int = 3,
 ) -> Optional[Dict[int, Dict[datetime.date, str]]]:
     """
@@ -102,7 +108,7 @@ def get_prev_boundary(
         prev_month = 12
         prev_year = year - 1
 
-    df = load_schedule(prev_year, prev_month)
+    df = load_schedule(prev_year, prev_month, ward=ward)
     if df is None:
         return None
 

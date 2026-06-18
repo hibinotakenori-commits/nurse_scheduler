@@ -1,14 +1,11 @@
 """アプリ設定の永続化（settings.json への保存・読込）。"""
 import datetime
 import json
+import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
-
-# 保存先: プロジェクトルート直下
-SETTINGS_PATH  = Path(__file__).parent.parent / "settings.json"
-REQUESTS_PATH  = Path(__file__).parent.parent / "requests.json"
 
 # ── デフォルト値 ─────────────────────────────────────────────
 DEFAULT_SOFT_WEIGHTS: Dict[str, int] = {
@@ -31,9 +28,17 @@ DAYCARE_TYPE_OPTIONS = ["none", "day", "night"]
 DAYCARE_TYPE_LABELS  = {"none": "利用なし", "day": "日中のみ", "night": "夜間保育あり"}
 
 
-def load_settings() -> Dict[str, Any]:
+def _ward_dir(ward: str) -> Path:
+    """病棟別データディレクトリを返す（なければ作成）。"""
+    d = Path(__file__).parent.parent / "data" / ward
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def load_settings(ward: str = "3A") -> Dict[str, Any]:
     """
-    settings.json を読み込む。ファイルが存在しない場合はデフォルト値を返す。
+    data/{ward}/settings.json を読み込む。
+    ファイルがなく settings.json（ルート）が存在する場合は自動コピー（3A のみ）。
 
     Returns:
         {
@@ -41,39 +46,39 @@ def load_settings() -> Dict[str, Any]:
             "soft_weights": dict,
             "hospital_holidays": List[datetime.date],
             "daycare_closed": List[datetime.date],
-            "nightcare_open": List[datetime.date],   # 夜間保育受け入れ日
-            "gakudo_open": List[datetime.date],      # 夜間学童受け入れ日
+            "nightcare_open": List[datetime.date],
+            "gakudo_open": List[datetime.date],
             "staff": List[dict] | None,
         }
     """
-    if not SETTINGS_PATH.exists():
-        return {
-            "requirements":    _deep_copy_req(DEFAULT_REQUIREMENTS),
-            "soft_weights":    dict(DEFAULT_SOFT_WEIGHTS),
-            "hospital_holidays": [],
-            "daycare_closed":  [],
-            "nightcare_open":  [],
-            "gakudo_open":     [],
-            "hard_constraints":  [],
-            "soft_constraints":  [],
-            "staff":           None,
-        }
+    settings_path = _ward_dir(ward) / "settings.json"
+
+    # 3A 後方互換：ルートの settings.json を自動マイグレーション
+    if not settings_path.exists() and ward == "3A":
+        root_settings = Path(__file__).parent.parent / "settings.json"
+        if root_settings.exists():
+            shutil.copy2(root_settings, settings_path)
+
+    _default = {
+        "requirements":    _deep_copy_req(DEFAULT_REQUIREMENTS),
+        "soft_weights":    dict(DEFAULT_SOFT_WEIGHTS),
+        "hospital_holidays": [],
+        "daycare_closed":  [],
+        "nightcare_open":  [],
+        "gakudo_open":     [],
+        "hard_constraints":  [],
+        "soft_constraints":  [],
+        "staff":           None,
+    }
+
+    if not settings_path.exists():
+        return _default
 
     try:
-        with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
+        with open(settings_path, "r", encoding="utf-8") as f:
             data = json.load(f)
     except Exception:
-        return {
-            "requirements":    _deep_copy_req(DEFAULT_REQUIREMENTS),
-            "soft_weights":    dict(DEFAULT_SOFT_WEIGHTS),
-            "hospital_holidays": [],
-            "daycare_closed":  [],
-            "nightcare_open":  [],
-            "gakudo_open":     [],
-            "hard_constraints":  [],
-            "soft_constraints":  [],
-            "staff":           None,
-        }
+        return _default
 
     # requirements の後方互換
     req = data.get("requirements", {})
@@ -138,8 +143,11 @@ def save_settings(
     # 新パラメータ
     system_constraint_priorities: Optional[Dict[str, int]] = None,
     user_constraints: Optional[List[dict]] = None,
+    ward: str = "3A",
 ) -> None:
-    """現在の設定を settings.json に保存する。"""
+    """現在の設定を data/{ward}/settings.json に保存する。"""
+    settings_path = _ward_dir(ward) / "settings.json"
+
     staff_records = []
     for r in staff_df.to_dict(orient="records"):
         cleaned = {}
@@ -170,7 +178,7 @@ def save_settings(
     if target_month is not None:
         data["target_month"] = target_month
 
-    with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
+    with open(settings_path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
@@ -250,8 +258,9 @@ def staff_df_from_settings(data: Dict[str, Any]) -> pd.DataFrame:
 
 # ── 勤務希望の保存・読み込み ──────────────────────────────────
 
-def save_requests(requests_df: pd.DataFrame) -> None:
-    """requests_df を requests.json に保存する。"""
+def save_requests(requests_df: pd.DataFrame, ward: str = "3A") -> None:
+    """requests_df を data/{ward}/requests.json に保存する。"""
+    requests_path = _ward_dir(ward) / "requests.json"
     records = []
     for r in requests_df.to_dict(orient="records"):
         cleaned = {}
@@ -265,17 +274,25 @@ def save_requests(requests_df: pd.DataFrame) -> None:
             else:
                 cleaned[k] = v
         records.append(cleaned)
-    with open(REQUESTS_PATH, "w", encoding="utf-8") as f:
+    with open(requests_path, "w", encoding="utf-8") as f:
         json.dump(records, f, ensure_ascii=False, indent=2)
 
 
-def load_requests() -> pd.DataFrame:
-    """requests.json から requests_df を復元する。ファイルがなければ空 DataFrame を返す。"""
+def load_requests(ward: str = "3A") -> pd.DataFrame:
+    """data/{ward}/requests.json から requests_df を復元する。ファイルがなければ空 DataFrame を返す。"""
+    requests_path = _ward_dir(ward) / "requests.json"
     empty = pd.DataFrame(columns=["staff_id", "date", "shift", "is_fixed"])
-    if not REQUESTS_PATH.exists():
+
+    # 3A 後方互換：ルートの requests.json を自動マイグレーション
+    if not requests_path.exists() and ward == "3A":
+        root_requests = Path(__file__).parent.parent / "requests.json"
+        if root_requests.exists():
+            shutil.copy2(root_requests, requests_path)
+
+    if not requests_path.exists():
         return empty
     try:
-        with open(REQUESTS_PATH, "r", encoding="utf-8") as f:
+        with open(requests_path, "r", encoding="utf-8") as f:
             records = json.load(f)
         if not records:
             return empty

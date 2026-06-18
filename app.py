@@ -1,4 +1,6 @@
-"""3A病棟 勤務表作成アプリ - メインエントリポイント"""
+"""看護師シフトスケジューラー - メインエントリポイント"""
+
+WARDS = ["3A", "2D", "3B", "3C", "3D", "4A", "4B", "4C", "5A", "5B", "ICU", "SCU", "HCU", "外来"]
 
 # ── ソルバーが常に守るハード制約（システム固定・削除不可） ──────────────
 # システム制約：テキスト → デフォルト優先度（1〜5）
@@ -33,7 +35,7 @@ from utils.schedule_store import save_schedule, list_saved_schedules, get_prev_b
 from utils.schedule_import import parse_excel, parse_image, schedule_dict_to_df
 
 st.set_page_config(
-    page_title="3A病棟 勤務表作成",
+    page_title="看護師シフトスケジューラー",
     page_icon="🏥",
     layout="wide",
 )
@@ -47,12 +49,28 @@ if st.query_params.get("page") == "staff":
     _spec.loader.exec_module(_mod)
     st.stop()
 
+# ── 病棟選択ランディングページ ──────────────────────────────
+
+if "ward" not in st.session_state:
+    st.session_state.ward = None
+
+if st.session_state.ward is None:
+    st.title("🏥 看護師シフトスケジューラー")
+    st.subheader("病棟を選択してください")
+    cols = st.columns(3)
+    for i, _ward in enumerate(WARDS):
+        with cols[i % 3]:
+            if st.button(_ward, use_container_width=True, key=f"ward_btn_{_ward}"):
+                st.session_state.ward = _ward
+                st.rerun()
+    st.stop()
+
 # ── セッションステートの初期化 ──────────────────────────────
 
 def init_state():
-    # settings.json から保存済み設定を読み込む（初回のみ）
+    # settings.json から保存済み設定を読み込む（初回のみ・病棟ごとに）
     if "_settings_loaded" not in st.session_state:
-        _s = load_settings()
+        _s = load_settings(ward=st.session_state.ward)
         st.session_state._settings_loaded = True
         st.session_state.staff_df      = staff_df_from_settings(_s)
         st.session_state.requirements  = _s["requirements"]
@@ -73,7 +91,7 @@ def init_state():
             st.session_state["target_month"] = _s["target_month"]
 
     if "requests_df" not in st.session_state:
-        st.session_state.requests_df = load_requests()
+        st.session_state.requests_df = load_requests(ward=st.session_state.ward)
     if "schedule_df" not in st.session_state:
         st.session_state.schedule_df = None
     if "edited_schedule_df" not in st.session_state:
@@ -168,7 +186,13 @@ def _last_day(year: int, month: int) -> int:
 # ── サイドバー ─────────────────────────────────────────────
 
 with st.sidebar:
-    st.title("🏥 3A病棟 勤務表")
+    st.markdown(f"### 🏥 {st.session_state.ward} 病棟")
+    if st.button("病棟を変更", key="change_ward_btn"):
+        for _key in list(st.session_state.keys()):
+            if _key != "ward":
+                del st.session_state[_key]
+        st.session_state.ward = None
+        st.rerun()
     st.divider()
 
     now = datetime.date.today()
@@ -253,7 +277,7 @@ with st.sidebar:
 
 if run_solver:
     st.session_state.infeasibility_reasons = []  # 前回の分析結果をリセット
-    _prev_boundary = get_prev_boundary(target_year, target_month)
+    _prev_boundary = get_prev_boundary(target_year, target_month, ward=st.session_state.ward)
     _solver_kwargs = dict(
         staff_df=staff_df,
         requests_df=st.session_state.requests_df,
@@ -388,7 +412,7 @@ with tab_schedule:
         col_save, col_reset, col_xlsx, col_csv, col_space = st.columns([2, 2, 1, 1, 2])
         with col_save:
             if st.button("💾 勤務表を保存", type="primary", use_container_width=True):
-                save_schedule(st.session_state.edited_schedule_df, target_year, target_month)
+                save_schedule(st.session_state.edited_schedule_df, target_year, target_month, ward=st.session_state.ward)
                 st.success(f"✅ {target_year}/{target_month:02d}期の勤務表を保存しました")
         with col_reset:
             if st.session_state.schedule_df is not None:
@@ -426,7 +450,7 @@ with tab_schedule:
             )
 
         # 保存済み一覧
-        _saved_list = list_saved_schedules()
+        _saved_list = list_saved_schedules(ward=st.session_state.ward)
         if _saved_list:
             with st.expander(f"📁 保存済み勤務表（{len(_saved_list)}件）"):
                 for _sv in _saved_list:
@@ -506,7 +530,7 @@ with tab_schedule:
                         for _d, _s in _shifts.items():
                             _sdf_for_save.at[_sid, _d] = _s
                     _sdf_for_save = _sdf_for_save.fillna("O")
-                    save_schedule(_sdf_for_save, _imp_year, _imp_month)
+                    save_schedule(_sdf_for_save, _imp_year, _imp_month, ward=st.session_state.ward)
                     st.success(f"✅ {_imp_year}/{_imp_month:02d}期の勤務表を保存しました。次回の勤務表作成時に月またぎ制約として自動で使用されます。")
             else:
                 st.error("シフトデータを取得できませんでした。")
@@ -553,7 +577,7 @@ with tab_requests:
     col_save_req, col_save_info = st.columns([1, 4])
     with col_save_req:
         if st.button("💾 希望を保存", type="primary", key="save_requests_btn"):
-            save_requests(st.session_state.requests_df)
+            save_requests(st.session_state.requests_df, ward=st.session_state.ward)
             # 年月も同時に保存して次回起動時に同じ期間を表示する
             save_settings(
                 requirements=st.session_state.requirements,
@@ -567,6 +591,7 @@ with tab_requests:
                 staff_df=st.session_state.staff_df,
                 target_year=st.session_state.get("target_year"),
                 target_month=st.session_state.get("target_month"),
+                ward=st.session_state.ward,
             )
             st.success(f"✅ {len(st.session_state.requests_df)} 件の希望を保存しました。次回起動時も反映されます。")
 
@@ -664,6 +689,7 @@ with tab_staff:
             staff_df=st.session_state.staff_df,
             target_year=st.session_state.get("target_year"),
             target_month=st.session_state.get("target_month"),
+            ward=st.session_state.ward,
         )
         st.session_state.pop("staff_summary_editor", None)
         st.rerun()
@@ -760,6 +786,7 @@ with tab_staff:
                     staff_df=st.session_state.staff_df,
                     target_year=st.session_state.get("target_year"),
                     target_month=st.session_state.get("target_month"),
+                    ward=st.session_state.ward,
                 )
                 st.success("保存しました。")
                 st.rerun()
@@ -813,6 +840,7 @@ with tab_staff:
                             staff_df=st.session_state.staff_df,
                             target_year=st.session_state.get("target_year"),
                             target_month=st.session_state.get("target_month"),
+                            ward=st.session_state.ward,
                         )
                         st.success(f"「{_new_name.strip()}」を追加しました。")
                         st.rerun()
@@ -843,8 +871,9 @@ with tab_staff:
                         staff_df=st.session_state.staff_df,
                         target_year=st.session_state.get("target_year"),
                         target_month=st.session_state.get("target_month"),
+                        ward=st.session_state.ward,
                     )
-                    save_requests(st.session_state.requests_df)
+                    save_requests(st.session_state.requests_df, ward=st.session_state.ward)
                     st.success(f"「{_sel_name}」を削除しました。")
                     st.rerun()
 
@@ -1101,6 +1130,7 @@ with tab_common:
                 staff_df=st.session_state.staff_df,
                 target_year=st.session_state.get("target_year"),
                 target_month=st.session_state.get("target_month"),
+                ward=st.session_state.ward,
             )
             st.success("✅ 院内共通設定を保存しました。")
         except Exception as _e:
@@ -1269,6 +1299,7 @@ with tab_ward:
             staff_df=st.session_state.staff_df,
             target_year=st.session_state.get("target_year"),
             target_month=st.session_state.get("target_month"),
+            ward=st.session_state.ward,
         )
 
     # ── もともとの条件 ──
@@ -1375,6 +1406,7 @@ with tab_ward:
                 staff_df=st.session_state.staff_df,
                 target_year=st.session_state.get("target_year"),
                 target_month=st.session_state.get("target_month"),
+                ward=st.session_state.ward,
             )
             st.success("✅ 病棟独自設定を保存しました。")
         except Exception as _e:
