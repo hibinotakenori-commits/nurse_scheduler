@@ -700,12 +700,17 @@ with tab_staff:
                 format_func=lambda v: DAYCARE_TYPE_LABELS.get(v, v),
                 index=_dc_idx,
             )
-            # 夜間保育必須フラグ
+            # 夜間保育フラグ
             _nc_req_current = bool(_sel.get("nightcare_required", False))
             _f_nc_req = st.checkbox(
                 "夜間保育があるときのみ夜勤可",
                 value=_nc_req_current,
                 help="ON：夜間保育受け入れ日以外は夜勤不可。OFF：家族対応等で夜間保育なしでも夜勤可。",
+            )
+            _f_nc_no_night = st.checkbox(
+                "夜間保育があるときに夜勤不可",
+                value=bool(_sel.get("nightcare_no_night", False)),
+                help="ON：夜間保育受け入れ日は夜勤不可（保育担当等で夜勤に入れない場合）。",
             )
 
             st.markdown("---")
@@ -732,6 +737,7 @@ with tab_staff:
                 st.session_state.staff_df.loc[_sel_idx, "target_hours"]       = _f_hours
                 st.session_state.staff_df.loc[_sel_idx, "daycare_type"]       = _f_dc
                 st.session_state.staff_df.loc[_sel_idx, "nightcare_required"] = _f_nc_req
+                st.session_state.staff_df.loc[_sel_idx, "nightcare_no_night"] = _f_nc_no_night
                 st.session_state.staff_df.loc[_sel_idx, "gakudo"]             = _f_gakudo
                 st.session_state.staff_df.loc[_sel_idx, "gakudo_required"]    = _f_gakudo_req
                 save_settings(
@@ -780,6 +786,7 @@ with tab_staff:
                             "night_count_min": _new_nc_min, "night_count_max": _new_nc_max,
                             "target_hours": float(_new_hours),
                             "daycare_type": "none", "nightcare_required": False,
+                            "nightcare_no_night": False,
                             "gakudo": False, "gakudo_required": False,
                             "order": _new_order, "active": True,
                         }])

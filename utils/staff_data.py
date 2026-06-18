@@ -52,6 +52,8 @@ def load_staff() -> pd.DataFrame:
     df["daycare_type"] = "none"
     # 夜間保育必須フラグ: True=夜間保育受け入れ日のみ夜勤可, False=家族対応等で夜勤可
     df["nightcare_required"] = False
+    # 夜間保育禁止フラグ: True=夜間保育受け入れ日は夜勤不可
+    df["nightcare_no_night"] = False
     # 夜間学童: True=夜間学童を利用
     df["gakudo"] = False
     # 夜間学童必須フラグ: True=夜間学童受け入れ日のみ夜勤可

@@ -113,6 +113,13 @@ def solve(
     # 日中・夜間どちらも「休園日は勤務不可」制約の対象
     daycare_staff_idx = daycare_day_idx | daycare_night_idx
 
+    # nightcare_no_night=True のスタッフ：夜間保育受け入れ日に夜勤不可
+    nightcare_no_night_idx = set(
+        sid_to_idx[row["id"]]
+        for _, row in staff_df.iterrows()
+        if bool(row.get("nightcare_no_night", False))
+        and row["id"] in sid_to_idx
+    )
     # 夜間学童: gakudo_required=True のスタッフのみ受け入れ日制約の対象
     gakudo_required_idx = set(
         sid_to_idx[row["id"]]
@@ -304,6 +311,15 @@ def solve(
         non_open_didx = [dates.index(d) for d in dates if d not in open_set]
         for sidx in daycare_night_idx:
             for didx in non_open_didx:
+                model.add(x[sidx][didx][N1] == 0)
+                model.add(x[sidx][didx][N2] == 0)
+
+    # H_nc2: nightcare_no_night スタッフは夜間保育受け入れ日に夜勤不可（N1/N2 禁止）
+    if nightcare_no_night_idx:
+        nc_open_set = set(nightcare_open_dates or [])
+        nc_open_didx = [dates.index(d) for d in dates if d in nc_open_set]
+        for sidx in nightcare_no_night_idx:
+            for didx in nc_open_didx:
                 model.add(x[sidx][didx][N1] == 0)
                 model.add(x[sidx][didx][N2] == 0)
 

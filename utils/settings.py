@@ -240,6 +240,11 @@ def staff_df_from_settings(data: Dict[str, Any]) -> pd.DataFrame:
     else:
         df["active"] = df["active"].fillna(True).astype(bool)
 
+    if "nightcare_no_night" not in df.columns:
+        df["nightcare_no_night"] = False
+    else:
+        df["nightcare_no_night"] = df["nightcare_no_night"].fillna(False).astype(bool)
+
     return df
 
 
