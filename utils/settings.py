@@ -35,6 +35,81 @@ def _ward_dir(ward: str) -> Path:
     return d
 
 
+def _common_dir() -> Path:
+    """院内共通設定ディレクトリを返す（なければ作成）。"""
+    d = Path(__file__).parent.parent / "data" / "common"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def load_common_settings() -> Dict[str, Any]:
+    """
+    院内共通設定（休日・保育園・夜間保育・学童）を data/common/hospital_settings.json から読む。
+    なければ 3A の settings.json から移行する。
+    """
+    path = _common_dir() / "hospital_settings.json"
+
+    # 3A の settings.json から自動マイグレーション
+    if not path.exists():
+        src = Path(__file__).parent.parent / "data" / "3A" / "settings.json"
+        if not src.exists():
+            src = Path(__file__).parent.parent / "settings.json"
+        if src.exists():
+            try:
+                with open(src, "r", encoding="utf-8") as f:
+                    _s = json.load(f)
+                _migrate = {
+                    "hospital_holidays": _s.get("hospital_holidays", []),
+                    "daycare_closed":    _s.get("daycare_closed", []),
+                    "nightcare_open":    _s.get("nightcare_open", []),
+                    "gakudo_open":       _s.get("gakudo_open", []),
+                }
+                with open(path, "w", encoding="utf-8") as f:
+                    json.dump(_migrate, f, ensure_ascii=False, indent=2)
+            except Exception:
+                pass
+
+    _default: Dict[str, Any] = {
+        "hospital_holidays": [],
+        "daycare_closed":    [],
+        "nightcare_open":    [],
+        "gakudo_open":       [],
+    }
+    if not path.exists():
+        return _default
+
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return _default
+
+    return {
+        "hospital_holidays": [datetime.date.fromisoformat(s) for s in data.get("hospital_holidays", [])],
+        "daycare_closed":    [datetime.date.fromisoformat(s) for s in data.get("daycare_closed", [])],
+        "nightcare_open":    [datetime.date.fromisoformat(s) for s in data.get("nightcare_open", [])],
+        "gakudo_open":       [datetime.date.fromisoformat(s) for s in data.get("gakudo_open", [])],
+    }
+
+
+def save_common_settings(
+    hospital_holidays: List[datetime.date],
+    daycare_closed: List[datetime.date],
+    nightcare_open: List[datetime.date],
+    gakudo_open: List[datetime.date],
+) -> None:
+    """院内共通設定を data/common/hospital_settings.json に保存する。"""
+    path = _common_dir() / "hospital_settings.json"
+    data = {
+        "hospital_holidays": [d.isoformat() for d in (hospital_holidays or [])],
+        "daycare_closed":    [d.isoformat() for d in (daycare_closed or [])],
+        "nightcare_open":    [d.isoformat() for d in (nightcare_open or [])],
+        "gakudo_open":       [d.isoformat() for d in (gakudo_open or [])],
+    }
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
 def load_settings(ward: str = "3A") -> Dict[str, Any]:
     """
     data/{ward}/settings.json を読み込む。

@@ -27,7 +27,8 @@ from utils.excel_export import export_excel, export_csv
 from utils.staff_data import load_staff
 from utils.settings import (load_settings, save_settings, staff_df_from_settings,
                              DEFAULT_SOFT_WEIGHTS, DAYCARE_TYPE_OPTIONS, DAYCARE_TYPE_LABELS,
-                             load_requests, save_requests)
+                             load_requests, save_requests,
+                             load_common_settings, save_common_settings)
 from streamlit_sortables import sort_items
 from ui.request_calendar import render_request_calendar
 from utils.time_utils import schedule_dates
@@ -75,10 +76,12 @@ def init_state():
         st.session_state.staff_df      = staff_df_from_settings(_s, ward=st.session_state.ward)
         st.session_state.requirements  = _s["requirements"]
         st.session_state.soft_weights  = _s.get("soft_weights", dict(DEFAULT_SOFT_WEIGHTS))
-        st.session_state.hospital_holidays = _s["hospital_holidays"]
-        st.session_state.daycare_closed    = _s["daycare_closed"]
-        st.session_state.nightcare_open    = _s.get("nightcare_open", [])
-        st.session_state.gakudo_open         = _s.get("gakudo_open", [])
+        # 院内共通設定は病棟に依らず共通ファイルから読む
+        _cs = load_common_settings()
+        st.session_state.hospital_holidays = _cs["hospital_holidays"]
+        st.session_state.daycare_closed    = _cs["daycare_closed"]
+        st.session_state.nightcare_open    = _cs["nightcare_open"]
+        st.session_state.gakudo_open       = _cs["gakudo_open"]
         st.session_state.system_constraint_priorities = _s.get(
             "system_constraint_priorities",
             {c["text"]: c["default_priority"] for c in SYSTEM_CONSTRAINTS},
@@ -1113,24 +1116,16 @@ with tab_common:
 
     st.divider()
     st.subheader("💾 設定の保存")
-    st.caption("院内共通設定を settings.json に保存します。次回起動時に自動で読み込まれます。")
+    st.caption("院内共通設定はすべての病棟で共有されます。保存すると全病棟に即時反映されます。")
     if st.button("院内共通設定を保存", type="primary", key="save_common_settings_btn"):
         try:
-            save_settings(
-                requirements=st.session_state.requirements,
-                soft_weights=st.session_state.soft_weights,
+            save_common_settings(
                 hospital_holidays=st.session_state.hospital_holidays,
                 daycare_closed=st.session_state.daycare_closed,
                 nightcare_open=st.session_state.nightcare_open,
                 gakudo_open=st.session_state.gakudo_open,
-                system_constraint_priorities=st.session_state.system_constraint_priorities,
-                user_constraints=st.session_state.user_constraints,
-                staff_df=st.session_state.staff_df,
-                target_year=st.session_state.get("target_year"),
-                target_month=st.session_state.get("target_month"),
-                ward=st.session_state.ward,
             )
-            st.success("✅ 院内共通設定を保存しました。")
+            st.success("✅ 院内共通設定を保存しました（全病棟に反映）。")
         except Exception as _e:
             st.error(f"❌ 保存に失敗しました: {_e}")
 
