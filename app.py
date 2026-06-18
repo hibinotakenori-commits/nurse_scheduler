@@ -698,7 +698,7 @@ with tab_staff:
 
     # ── ② スタッフ追加（スタッフ数によらず常に表示） ─────────────────
     st.divider()
-    with st.expander("➕ スタッフを追加", expanded=not bool(_staff_names)):
+    with st.expander("➕ スタッフを追加", expanded=len(_summary_df) == 0):
         with st.form("add_staff_form"):
             _ac1, _ac2 = st.columns(2)
             _new_name  = _ac1.text_input("氏名")
@@ -752,6 +752,7 @@ with tab_staff:
                     st.rerun()
 
     # ── ③ 個人詳細（スタッフが存在する場合のみ） ───────────────────
+    _staff_names = st.session_state.staff_df.sort_values("order")["name"].tolist()
     if _staff_names:
         st.subheader("個人詳細")
         _sel_name = st.selectbox("スタッフを選択", _staff_names, key="staff_detail_select")
