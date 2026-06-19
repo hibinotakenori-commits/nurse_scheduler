@@ -247,6 +247,140 @@ def parse_image(
     return schedule, warnings
 
 
+# ── スタッフ取り込み（Excel） ─────────────────────────────────
+
+# Excelで認識する列名（日本語・英語どちらでも可）
+_COL_MAP = {
+    "氏名": "name", "名前": "name", "スタッフ名": "name", "name": "name",
+    "経験年数": "years_exp", "年数": "years_exp", "years_exp": "years_exp", "経験": "years_exp",
+    "夜勤可": "night_ok", "night_ok": "night_ok",
+    "日勤リーダー可": "day_leader_ok", "日勤L": "day_leader_ok", "day_leader_ok": "day_leader_ok",
+    "夜勤リーダー可": "night_leader_ok", "夜勤L": "night_leader_ok", "night_leader_ok": "night_leader_ok",
+    "夜勤下限": "night_count_min", "night_count_min": "night_count_min",
+    "夜勤上限": "night_count_max", "night_count_max": "night_count_max",
+    "目標時間": "target_hours", "target_hours": "target_hours",
+}
+
+
+def parse_staff_from_excel(file_bytes: bytes) -> Tuple[List[Dict], List[str]]:
+    """
+    Excelファイルからスタッフ情報を取り込む。
+    「氏名」列（必須）と任意の属性列を読み取る。
+    戻り値: (staff_list, warnings)
+    """
+    warnings: List[str] = []
+    try:
+        df = pd.read_excel(io.BytesIO(file_bytes), header=None)
+    except Exception as e:
+        return [], [f"Excelの読み込みに失敗しました: {e}"]
+
+    # ヘッダー行を自動検出（「氏名」または「名前」を含む行）
+    header_row = None
+    for i, row in df.iterrows():
+        vals = [str(v).strip() for v in row if pd.notna(v)]
+        if any(v in _COL_MAP for v in vals):
+            header_row = i
+            break
+
+    if header_row is None:
+        # ヘッダーなし → 先頭列を名前として扱う
+        names = [str(v).strip() for v in df.iloc[:, 0] if pd.notna(v) and str(v).strip()]
+        if not names:
+            return [], ["スタッフ名が見つかりませんでした。「氏名」列を含むExcelを使用してください。"]
+        warnings.append("ヘッダー行が見つからなかったため、先頭列をスタッフ名として読み取りました。")
+        return [{"name": n} for n in names], warnings
+
+    # ヘッダー行以降をデータとして読み込む
+    data_df = df.iloc[header_row + 1:].copy()
+    data_df.columns = [str(v).strip() for v in df.iloc[header_row]]
+    data_df = data_df.reset_index(drop=True)
+
+    # 列名を正規化
+    col_mapping = {}
+    for col in data_df.columns:
+        mapped = _COL_MAP.get(col)
+        if mapped:
+            col_mapping[col] = mapped
+    data_df = data_df.rename(columns=col_mapping)
+
+    if "name" not in data_df.columns:
+        return [], ["「氏名」列が見つかりませんでした。"]
+
+    staff_list: List[Dict] = []
+    for _, row in data_df.iterrows():
+        name = str(row.get("name", "")).strip()
+        if not name or name in ("nan", "None", ""):
+            continue
+        entry: Dict = {"name": name}
+        for field in ["years_exp", "night_count_min", "night_count_max"]:
+            try:
+                v = row.get(field)
+                if pd.notna(v):
+                    entry[field] = int(v)
+            except (ValueError, TypeError):
+                pass
+        for field in ["target_hours"]:
+            try:
+                v = row.get(field)
+                if pd.notna(v):
+                    entry[field] = float(v)
+            except (ValueError, TypeError):
+                pass
+        for field in ["night_ok", "day_leader_ok", "night_leader_ok"]:
+            try:
+                v = row.get(field)
+                if pd.notna(v):
+                    entry[field] = bool(v) if isinstance(v, bool) else str(v).strip() in ("1", "True", "true", "○", "◯", "yes")
+            except (ValueError, TypeError):
+                pass
+        staff_list.append(entry)
+
+    if not staff_list:
+        return [], ["スタッフ名が1件も見つかりませんでした。"]
+    return staff_list, warnings
+
+
+def parse_staff_from_image(file_bytes: bytes, mime_type: str) -> Tuple[List[str], List[str]]:
+    """
+    画像（勤務表や名簿の写真）から Claude Vision でスタッフ名一覧を抽出する。
+    戻り値: (names, warnings)
+    """
+    try:
+        import anthropic
+    except ImportError:
+        return [], ["anthropic ライブラリがインストールされていません。"]
+
+    prompt = """この画像に写っている看護師・スタッフの氏名をすべて抽出してください。
+勤務表の場合は行ヘッダー（スタッフ名が並ぶ列）を読み取ってください。
+名前のみのリスト形式で出力してください（1行1名）。説明文は不要です。"""
+
+    try:
+        client = anthropic.Anthropic()
+        b64 = base64.standard_b64encode(file_bytes).decode("utf-8")
+        message = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1024,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "image", "source": {"type": "base64", "media_type": mime_type, "data": b64}},
+                    {"type": "text", "text": prompt},
+                ],
+            }],
+        )
+        text = message.content[0].text.strip()
+    except Exception as e:
+        return [], [f"Claude API エラー: {e}"]
+
+    names = [line.strip().lstrip("・-・•　 　").strip()
+             for line in text.splitlines()
+             if line.strip() and not line.strip().startswith("#")]
+    names = [n for n in names if n]
+    if not names:
+        return [], [f"名前が抽出できませんでした。応答: {text[:200]}"]
+    return names, []
+
+
 # ── schedule_dict → DataFrame ────────────────────────────────
 
 def schedule_dict_to_df(

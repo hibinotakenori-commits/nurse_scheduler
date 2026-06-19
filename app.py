@@ -33,7 +33,8 @@ from streamlit_sortables import sort_items
 from ui.request_calendar import render_request_calendar
 from utils.time_utils import schedule_dates
 from utils.schedule_store import save_schedule, list_saved_schedules, get_prev_boundary
-from utils.schedule_import import parse_excel, parse_image, schedule_dict_to_df
+from utils.schedule_import import (parse_excel, parse_image, schedule_dict_to_df,
+                                    parse_staff_from_excel, parse_staff_from_image)
 
 st.set_page_config(
     page_title="看護師シフトスケジューラー",
@@ -768,6 +769,139 @@ with tab_staff:
                     )
                     st.success(f"「{_new_name.strip()}」を追加しました。")
                     st.rerun()
+
+    # ── ②-b ExcelまたはAI画像認識でスタッフを一括取り込み ──────────
+    with st.expander("📥 Excel・写真から一括取り込み"):
+        st.caption("スタッフ名簿のExcelか、勤務表・名簿の写真をアップロードするとスタッフ名を自動で読み取ります。")
+        _imp_tab_xl, _imp_tab_img = st.tabs(["📊 Excelから", "📷 写真から"])
+
+        with _imp_tab_xl:
+            st.caption("列名「氏名」を含むExcelを推奨。氏名のみの列でも可。")
+            _xl_file = st.file_uploader("Excelファイルを選択", type=["xlsx", "xls"],
+                                        key="staff_import_excel")
+            if _xl_file:
+                _parsed_staff, _xl_warns = parse_staff_from_excel(_xl_file.read())
+                for w in _xl_warns:
+                    st.warning(w)
+                if _parsed_staff:
+                    st.write(f"**{len(_parsed_staff)} 名を検出しました：**")
+                    _existing_names = st.session_state.staff_df["name"].tolist()
+                    _new_staff = [s for s in _parsed_staff if s["name"] not in _existing_names]
+                    _dup_staff = [s for s in _parsed_staff if s["name"] in _existing_names]
+                    if _dup_staff:
+                        st.info(f"既登録のためスキップ: {', '.join(s['name'] for s in _dup_staff)}")
+                    if _new_staff:
+                        st.dataframe(pd.DataFrame([{"氏名": s["name"],
+                                                    "経験年数": s.get("years_exp", "—"),
+                                                    "夜勤可": s.get("night_ok", "—")}
+                                                   for s in _new_staff]),
+                                     use_container_width=True, hide_index=True)
+                        if st.button(f"✅ {len(_new_staff)} 名を追加する", key="confirm_staff_xl_import",
+                                     type="primary"):
+                            _df_len = len(st.session_state.staff_df)
+                            _next_id    = int(st.session_state.staff_df["id"].max()) + 1 if _df_len > 0 else 1
+                            _next_order = int(st.session_state.staff_df["order"].max()) + 1 if _df_len > 0 else 1
+                            _rows = []
+                            for _si, _s in enumerate(_new_staff):
+                                _rows.append({
+                                    "id": _next_id + _si,
+                                    "name": _s["name"],
+                                    "years_exp": _s.get("years_exp", 1),
+                                    "night_ok": _s.get("night_ok", True),
+                                    "day_leader_ok": _s.get("day_leader_ok", False),
+                                    "night_leader_ok": _s.get("night_leader_ok", False),
+                                    "night_count_min": _s.get("night_count_min", 3),
+                                    "night_count_max": _s.get("night_count_max", 6),
+                                    "target_hours": _s.get("target_hours", 170.0),
+                                    "daycare_type": "none", "nightcare_required": False,
+                                    "nightcare_no_night": False,
+                                    "gakudo": False, "gakudo_required": False,
+                                    "order": _next_order + _si, "active": True,
+                                })
+                            st.session_state.staff_df = pd.concat(
+                                [st.session_state.staff_df, pd.DataFrame(_rows)], ignore_index=True
+                            )
+                            save_settings(
+                                requirements=st.session_state.requirements,
+                                soft_weights=st.session_state.soft_weights,
+                                hospital_holidays=st.session_state.hospital_holidays,
+                                daycare_closed=st.session_state.daycare_closed,
+                                nightcare_open=st.session_state.nightcare_open,
+                                gakudo_open=st.session_state.gakudo_open,
+                                system_constraint_priorities=st.session_state.system_constraint_priorities,
+                                user_constraints=st.session_state.user_constraints,
+                                staff_df=st.session_state.staff_df,
+                                target_year=st.session_state.get("target_year"),
+                                target_month=st.session_state.get("target_month"),
+                                ward=st.session_state.ward,
+                            )
+                            st.success(f"{len(_new_staff)} 名を追加しました。")
+                            st.rerun()
+                    else:
+                        st.info("追加できる新規スタッフはいません（全員既に登録済み）。")
+
+        with _imp_tab_img:
+            st.caption("勤務表や名簿の写真をアップロードするとAIがスタッフ名を読み取ります。")
+            _img_file = st.file_uploader("画像を選択", type=["png", "jpg", "jpeg"],
+                                         key="staff_import_image")
+            if _img_file:
+                st.image(_img_file, use_column_width=True)
+                if st.button("🤖 AIで名前を読み取る", key="staff_img_parse_btn"):
+                    with st.spinner("AIが画像を解析中…"):
+                        _mime = "image/jpeg" if _img_file.name.lower().endswith((".jpg", ".jpeg")) else "image/png"
+                        _img_names, _img_warns = parse_staff_from_image(_img_file.getvalue(), _mime)
+                    for w in _img_warns:
+                        st.warning(w)
+                    if _img_names:
+                        st.session_state["_staff_img_names"] = _img_names
+
+            if st.session_state.get("_staff_img_names"):
+                _img_names = st.session_state["_staff_img_names"]
+                _existing_names = st.session_state.staff_df["name"].tolist()
+                _new_img = [n for n in _img_names if n not in _existing_names]
+                _dup_img = [n for n in _img_names if n in _existing_names]
+                st.write(f"**{len(_img_names)} 名を検出：**")
+                if _dup_img:
+                    st.info(f"既登録のためスキップ: {', '.join(_dup_img)}")
+                if _new_img:
+                    for _n in _new_img:
+                        st.write(f"　・{_n}")
+                    if st.button(f"✅ {len(_new_img)} 名を追加する", key="confirm_staff_img_import",
+                                 type="primary"):
+                        _df_len = len(st.session_state.staff_df)
+                        _next_id    = int(st.session_state.staff_df["id"].max()) + 1 if _df_len > 0 else 1
+                        _next_order = int(st.session_state.staff_df["order"].max()) + 1 if _df_len > 0 else 1
+                        _rows = [{"id": _next_id + _si, "name": _n,
+                                  "years_exp": 1, "night_ok": True,
+                                  "day_leader_ok": False, "night_leader_ok": False,
+                                  "night_count_min": 3, "night_count_max": 6,
+                                  "target_hours": 170.0, "daycare_type": "none",
+                                  "nightcare_required": False, "nightcare_no_night": False,
+                                  "gakudo": False, "gakudo_required": False,
+                                  "order": _next_order + _si, "active": True}
+                                 for _si, _n in enumerate(_new_img)]
+                        st.session_state.staff_df = pd.concat(
+                            [st.session_state.staff_df, pd.DataFrame(_rows)], ignore_index=True
+                        )
+                        save_settings(
+                            requirements=st.session_state.requirements,
+                            soft_weights=st.session_state.soft_weights,
+                            hospital_holidays=st.session_state.hospital_holidays,
+                            daycare_closed=st.session_state.daycare_closed,
+                            nightcare_open=st.session_state.nightcare_open,
+                            gakudo_open=st.session_state.gakudo_open,
+                            system_constraint_priorities=st.session_state.system_constraint_priorities,
+                            user_constraints=st.session_state.user_constraints,
+                            staff_df=st.session_state.staff_df,
+                            target_year=st.session_state.get("target_year"),
+                            target_month=st.session_state.get("target_month"),
+                            ward=st.session_state.ward,
+                        )
+                        del st.session_state["_staff_img_names"]
+                        st.success(f"{len(_new_img)} 名を追加しました。")
+                        st.rerun()
+                else:
+                    st.info("追加できる新規スタッフはいません（全員既に登録済み）。")
 
     # ── ③ 個人詳細（スタッフが存在する場合のみ） ───────────────────
     _staff_names = st.session_state.staff_df.sort_values("order")["name"].tolist()
