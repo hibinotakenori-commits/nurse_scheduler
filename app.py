@@ -87,11 +87,11 @@ def init_state():
             {c["text"]: c["default_priority"] for c in SYSTEM_CONSTRAINTS},
         )
         st.session_state.user_constraints    = _s.get("user_constraints", [])
-        # 保存済みの年月があればセッションステートに復元
-        if _s.get("target_year") is not None:
-            st.session_state["target_year"] = _s["target_year"]
-        if _s.get("target_month") is not None:
-            st.session_state["target_month"] = _s["target_month"]
+        # 対象年月は院内共通設定から読む（全病棟で同期）
+        if _cs.get("target_year") is not None:
+            st.session_state["target_year"] = _cs["target_year"]
+        if _cs.get("target_month") is not None:
+            st.session_state["target_month"] = _cs["target_month"]
 
     if "requests_df" not in st.session_state:
         st.session_state.requests_df = load_requests(ward=st.session_state.ward)
@@ -581,20 +581,14 @@ with tab_requests:
     with col_save_req:
         if st.button("💾 希望を保存", type="primary", key="save_requests_btn"):
             save_requests(st.session_state.requests_df, ward=st.session_state.ward)
-            # 年月も同時に保存して次回起動時に同じ期間を表示する
-            save_settings(
-                requirements=st.session_state.requirements,
-                soft_weights=st.session_state.soft_weights,
+            # 年月は全病棟共通で保存
+            save_common_settings(
                 hospital_holidays=st.session_state.hospital_holidays,
                 daycare_closed=st.session_state.daycare_closed,
                 nightcare_open=st.session_state.nightcare_open,
                 gakudo_open=st.session_state.gakudo_open,
-                system_constraint_priorities=st.session_state.system_constraint_priorities,
-                user_constraints=st.session_state.user_constraints,
-                staff_df=st.session_state.staff_df,
                 target_year=st.session_state.get("target_year"),
                 target_month=st.session_state.get("target_month"),
-                ward=st.session_state.ward,
             )
             st.success(f"✅ {len(st.session_state.requests_df)} 件の希望を保存しました。次回起動時も反映されます。")
 
@@ -1390,16 +1384,19 @@ with tab_ward:
             save_settings(
                 requirements=st.session_state.requirements,
                 soft_weights=st.session_state.soft_weights,
+                system_constraint_priorities=st.session_state.system_constraint_priorities,
+                user_constraints=st.session_state.user_constraints,
+                staff_df=st.session_state.staff_df,
+                ward=st.session_state.ward,
+            )
+            # 対象年月は全病棟共通で保存
+            save_common_settings(
                 hospital_holidays=st.session_state.hospital_holidays,
                 daycare_closed=st.session_state.daycare_closed,
                 nightcare_open=st.session_state.nightcare_open,
                 gakudo_open=st.session_state.gakudo_open,
-                system_constraint_priorities=st.session_state.system_constraint_priorities,
-                user_constraints=st.session_state.user_constraints,
-                staff_df=st.session_state.staff_df,
                 target_year=st.session_state.get("target_year"),
                 target_month=st.session_state.get("target_month"),
-                ward=st.session_state.ward,
             )
             st.success("✅ 病棟独自設定を保存しました。")
         except Exception as _e:

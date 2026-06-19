@@ -74,6 +74,8 @@ def load_common_settings() -> Dict[str, Any]:
         "daycare_closed":    [],
         "nightcare_open":    [],
         "gakudo_open":       [],
+        "target_year":       None,
+        "target_month":      None,
     }
     if not path.exists():
         return _default
@@ -89,6 +91,8 @@ def load_common_settings() -> Dict[str, Any]:
         "daycare_closed":    [datetime.date.fromisoformat(s) for s in data.get("daycare_closed", [])],
         "nightcare_open":    [datetime.date.fromisoformat(s) for s in data.get("nightcare_open", [])],
         "gakudo_open":       [datetime.date.fromisoformat(s) for s in data.get("gakudo_open", [])],
+        "target_year":       data.get("target_year"),
+        "target_month":      data.get("target_month"),
     }
 
 
@@ -97,14 +101,26 @@ def save_common_settings(
     daycare_closed: List[datetime.date],
     nightcare_open: List[datetime.date],
     gakudo_open: List[datetime.date],
+    target_year: Optional[int] = None,
+    target_month: Optional[int] = None,
 ) -> None:
     """院内共通設定を data/common/hospital_settings.json に保存する。"""
     path = _common_dir() / "hospital_settings.json"
+    # 既存データを読んでマージ（target_year/month だけ更新するケースに対応）
+    existing: Dict[str, Any] = {}
+    if path.exists():
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                existing = json.load(f)
+        except Exception:
+            pass
     data = {
         "hospital_holidays": [d.isoformat() for d in (hospital_holidays or [])],
         "daycare_closed":    [d.isoformat() for d in (daycare_closed or [])],
         "nightcare_open":    [d.isoformat() for d in (nightcare_open or [])],
         "gakudo_open":       [d.isoformat() for d in (gakudo_open or [])],
+        "target_year":       target_year  if target_year  is not None else existing.get("target_year"),
+        "target_month":      target_month if target_month is not None else existing.get("target_month"),
     }
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
