@@ -41,6 +41,13 @@ st.set_page_config(
     layout="wide",
 )
 
+# サイドバーのページナビゲーション（app/staff タブ）を非表示
+st.markdown("""
+<style>
+[data-testid="stSidebarNav"] { display: none !important; }
+</style>
+""", unsafe_allow_html=True)
+
 # ── スタッフ希望入力モード（?page=staff でアクセス時） ──────
 if st.query_params.get("page") == "staff":
     import importlib.util as _ilu
