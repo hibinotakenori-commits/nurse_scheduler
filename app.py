@@ -569,9 +569,10 @@ with tab_requests:
     import io as _io
     import qrcode
 
-    _STAFF_URL = "https://nursescheduler-mmqzcgez8yjvxs8qg5reou.streamlit.app/?page=staff"
+    _BASE_URL  = "https://nursescheduler-mmqzcgez8yjvxs8qg5reou.streamlit.app"
+    _STAFF_URL = f"{_BASE_URL}/?page=staff&ward={st.session_state.ward}"
 
-    with st.expander("📱 スタッフ向け希望入力QRコード", expanded=True):
+    with st.expander(f"📱 {st.session_state.ward}病棟 スタッフ向け希望入力QRコード", expanded=True):
         _qr_col, _info_col = st.columns([1, 2])
         with _qr_col:
             _qr = qrcode.make(_STAFF_URL)
@@ -579,9 +580,10 @@ with tab_requests:
             _qr.save(_buf, format="PNG")
             st.image(_buf.getvalue(), width=180)
         with _info_col:
-            st.markdown("**スタッフ向けURL**")
+            st.markdown(f"**{st.session_state.ward}病棟 スタッフ向けURL**")
             st.code(_STAFF_URL)
             st.caption(
+                f"**{st.session_state.ward}病棟のスタッフ専用**QRコードです。\n\n"
                 "スタッフはスマホのカメラでQRコードを読み取るか、"
                 "上のURLをブラウザで開いて希望を入力できます。\n\n"
                 "設定・管理画面は表示されません。"

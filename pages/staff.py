@@ -58,28 +58,38 @@ def _auto_target_period():
 
 
 def _init():
+    # URL クエリから病棟を取得（例: ?page=staff&ward=3A）
+    _ward = st.query_params.get("ward", "3A")
+
+    # 病棟が切り替わった場合はリロード
+    if st.session_state.get("_staff_ward") != _ward:
+        for k in list(st.session_state.keys()):
+            del st.session_state[k]
+
     if "_staff_page_loaded" not in st.session_state:
-        _s = load_settings()
+        _s = load_settings(ward=_ward)
         st.session_state._staff_page_loaded = True
-        st.session_state.staff_df    = staff_df_from_settings(_s)
-        st.session_state.requests_df = load_requests()
-        # 10日超なら翌月を自動設定
+        st.session_state._staff_ward  = _ward
+        st.session_state.staff_df     = staff_df_from_settings(_s, ward=_ward)
+        st.session_state.requests_df  = load_requests(ward=_ward)
         _auto_year, _auto_month = _auto_target_period()
         st.session_state["_staff_year"]  = _auto_year
         st.session_state["_staff_month"] = _auto_month
     if "requests_df" not in st.session_state:
-        st.session_state.requests_df = load_requests()
+        _ward = st.session_state.get("_staff_ward", "3A")
+        st.session_state.requests_df = load_requests(ward=_ward)
 
 _init()
+_ward = st.session_state.get("_staff_ward", "3A")
 
 staff_df = st.session_state.staff_df
 
 # ── ヘッダー ─────────────────────────────────────────────────
-st.markdown("""
+st.markdown(f"""
 <div style='background:#1565c0;color:white;padding:14px 18px;
             border-radius:8px;margin-bottom:16px'>
   <div style='font-size:20px;font-weight:bold'>📅 勤務希望入力</div>
-  <div style='font-size:12px;opacity:0.85;margin-top:2px'>3A病棟</div>
+  <div style='font-size:12px;opacity:0.85;margin-top:2px'>{_ward}病棟</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -288,5 +298,5 @@ if new_rows:
 # ── 保存ボタン ───────────────────────────────────────────────
 st.divider()
 if st.button("💾 希望を保存する", type="primary", use_container_width=True, key="staff_save"):
-    save_requests(st.session_state.requests_df)
+    save_requests(st.session_state.requests_df, ward=_ward)
     st.success("✅ 希望を保存しました。担当師長の画面に反映されます。")
