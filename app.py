@@ -66,6 +66,19 @@ if st.session_state.ward is None:
                 st.rerun()
     st.stop()
 
+# ── 対象年月の自動計算（10日超なら翌月） ────────────────────
+def _auto_target_period():
+    """今日の日付から初期表示すべき勤務期間の年月を返す。
+    10日を超えていれば翌月、以下なら今月。"""
+    today = datetime.date.today()
+    if today.day > 10:
+        month = today.month % 12 + 1
+        year  = today.year + (1 if today.month == 12 else 0)
+    else:
+        year, month = today.year, today.month
+    return year, month
+
+
 # ── セッションステートの初期化 ──────────────────────────────
 
 def init_state():
@@ -87,11 +100,10 @@ def init_state():
             {c["text"]: c["default_priority"] for c in SYSTEM_CONSTRAINTS},
         )
         st.session_state.user_constraints    = _s.get("user_constraints", [])
-        # 対象年月は院内共通設定から読む（全病棟で同期）
-        if _cs.get("target_year") is not None:
-            st.session_state["target_year"] = _cs["target_year"]
-        if _cs.get("target_month") is not None:
-            st.session_state["target_month"] = _cs["target_month"]
+        # 対象年月：10日超なら翌月を自動設定（全病棟共通）
+        _auto_year, _auto_month = _auto_target_period()
+        st.session_state["target_year"]  = _auto_year
+        st.session_state["target_month"] = _auto_month
 
     if "requests_df" not in st.session_state:
         st.session_state.requests_df = load_requests(ward=st.session_state.ward)

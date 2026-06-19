@@ -47,16 +47,26 @@ _SAT_COLOR  = "#1565c0"
 _NORM_COLOR = "#212121"
 
 # ── 初期化 ───────────────────────────────────────────────────
+def _auto_target_period():
+    today = datetime.date.today()
+    if today.day > 10:
+        month = today.month % 12 + 1
+        year  = today.year + (1 if today.month == 12 else 0)
+    else:
+        year, month = today.year, today.month
+    return year, month
+
+
 def _init():
     if "_staff_page_loaded" not in st.session_state:
         _s = load_settings()
         st.session_state._staff_page_loaded = True
         st.session_state.staff_df    = staff_df_from_settings(_s)
         st.session_state.requests_df = load_requests()
-        if _s.get("target_year"):
-            st.session_state["_staff_year"]  = _s["target_year"]
-        if _s.get("target_month"):
-            st.session_state["_staff_month"] = _s["target_month"]
+        # 10日超なら翌月を自動設定
+        _auto_year, _auto_month = _auto_target_period()
+        st.session_state["_staff_year"]  = _auto_year
+        st.session_state["_staff_month"] = _auto_month
     if "requests_df" not in st.session_state:
         st.session_state.requests_df = load_requests()
 
