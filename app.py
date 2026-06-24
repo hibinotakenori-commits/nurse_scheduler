@@ -65,7 +65,7 @@ if "ward" not in st.session_state:
 
 if st.session_state.ward is None:
     st.title("🏥 看護師シフトスケジューラー")
-    st.subheader("病棟を選択してください")
+    st.subheader("部署を選択してください")
     cols = st.columns(3)
     for i, _ward in enumerate(WARDS):
         with cols[i % 3]:
