@@ -209,8 +209,10 @@ def _last_day(year: int, month: int) -> int:
 # ── サイドバー ─────────────────────────────────────────────
 
 with st.sidebar:
-    st.markdown(f"### 🏥 {st.session_state.ward} 病棟")
-    if st.button("病棟を変更", key="change_ward_btn"):
+    _NO_WARD_SUFFIX = {"ICU", "SCU", "HCU", "救命救急センター", "外来"}
+    _ward_label = st.session_state.ward if st.session_state.ward in _NO_WARD_SUFFIX else f"{st.session_state.ward} 病棟"
+    st.markdown(f"### 🏥 {_ward_label}")
+    if st.button("部署を変更", key="change_ward_btn"):
         for _key in list(st.session_state.keys()):
             if _key != "ward":
                 del st.session_state[_key]
